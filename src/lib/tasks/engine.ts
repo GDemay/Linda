@@ -3,7 +3,8 @@ import type { Db } from '../db/index.ts';
 import { getAgent, isAgentKey } from '../agents/catalog.ts';
 import { findWorkspace } from '../repos/accounts.ts';
 import { recordActivity } from '../repos/workflows.ts';
-import { createTask, findTaskById, listTasks } from '../repos/tasks.ts';
+import { createTask, countTasks, findTaskById, listTasks } from '../repos/tasks.ts';
+import { recordEvent } from '../analytics/events.ts';
 import { AppError, type Task, type TaskStatus } from '../repos/types.ts';
 import { findTemplate, templatesFor } from './templates.ts';
 
@@ -51,6 +52,9 @@ export function runTask(db: Db, raw: unknown): Task {
 
   const output = template.render({ persona: def.persona, input: parsed.data.input });
 
+  // The first-value moment in the activation funnel (LIN-67 / audit fix #6).
+  const isFirstTask = countTasks(db, workspaceId) === 0;
+
   const task = createTask(db, {
     workspaceId,
     agent,
@@ -69,6 +73,7 @@ export function runTask(db: Db, raw: unknown): Task {
     summary: `${def.persona} completed: ${task.title}`,
     data: { taskId: task.id, agent, template: template.key, tokensUsed: template.tokens },
   });
+  if (isFirstTask) recordEvent(db, 'first_task_dispatched', { workspaceId, agent });
 
   return task;
 }

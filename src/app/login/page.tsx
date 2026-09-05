@@ -5,16 +5,22 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
 import { StateBar, type JourneyState } from '../components/StateBar.tsx';
+import { PageEvent } from '../components/PageEvent.tsx';
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramState = searchParams.get('state') as JourneyState | null;
+  const linkError = searchParams.get('error');
 
   const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    linkError === 'invalid_link' ? 'That sign-in link has expired or was already used. Request a fresh one below.' : null,
+  );
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [mode, setMode] = useState<'link' | 'password'>('link');
   const [showDestructive, setShowDestructive] = useState(false);
   const [customState, setCustomState] = useState<JourneyState>(paramState || 'live');
 
@@ -23,6 +29,20 @@ function LoginContent() {
       setCustomState(paramState);
     }
   }, [paramState]);
+
+  /** Magic-link flow (LIN-49 fix #1): one field, one button, check your inbox. */
+  async function sendLink(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/auth/magic-link', { body: { email: form.email } });
+      setSentTo(form.email);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+    setBusy(false);
+  }
 
   async function submit(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -41,6 +61,8 @@ function LoginContent() {
       setBusy(false);
     }
   }
+
+  const retry = () => (mode === 'link' ? sendLink() : submit());
 
   const effectiveState: JourneyState =
     customState !== 'live'
@@ -143,13 +165,13 @@ function LoginContent() {
                     <div className="l-col" style={{ gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
                       <div className="l-banner l-banner--danger">
                         <div>
-                          <b>Authentication failed.</b>
+                          <b>{mode === 'link' ? 'Could not send the link.' : 'Authentication failed.'}</b>
                           <br />
-                          {error || 'Invalid email or password. Nothing was locked — you can retry or request a password reset.'}
+                          {error || 'Invalid email or password. Nothing was locked — you can retry.'}
                         </div>
                       </div>
                       <div className="l-row" style={{ gap: 'var(--space-2)' }}>
-                        <button type="button" className="l-btn l-btn--primary l-btn--sm" onClick={() => submit()}>
+                        <button type="button" className="l-btn l-btn--primary l-btn--sm" onClick={retry}>
                           Retry
                         </button>
                         <Link href="/signup" className="l-btn l-btn--secondary l-btn--sm">
@@ -175,11 +197,22 @@ function LoginContent() {
                     </div>
                   )}
 
+                  {sentTo && (
+                    <div className="l-banner l-banner--success" style={{ marginBottom: 'var(--space-5)' }}>
+                      <div>
+                        <b>Check your inbox.</b>
+                        <br />
+                        We sent a sign-in link to <b>{sentTo}</b>. It&apos;s single-use and expires in 15
+                        minutes — request another any time.
+                      </div>
+                    </div>
+                  )}
+
                   {effectiveState === 'empty' && (
                     <div className="l-empty" style={{ padding: 'var(--space-4) 0', marginBottom: 'var(--space-4)' }}>
                       <div className="l-empty__icon">🔑</div>
                       <h3>No active session</h3>
-                      <p>Sign in with your work email or continue with your single sign-on provider.</p>
+                      <p>Enter your work email and we&apos;ll send you a one-click sign-in link.</p>
                       <button
                         type="button"
                         className="l-btn l-btn--secondary l-btn--sm"
@@ -190,28 +223,7 @@ function LoginContent() {
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    className="l-btn l-btn--secondary l-btn--lg"
-                    style={{ width: '100%', marginBottom: 'var(--space-3)' }}
-                  >
-                    Continue with Google
-                  </button>
-                  <button
-                    type="button"
-                    className="l-btn l-btn--secondary l-btn--lg"
-                    style={{ width: '100%', marginBottom: 'var(--space-5)' }}
-                  >
-                    Continue with Microsoft
-                  </button>
-
-                  <div className="l-row" style={{ marginBottom: 'var(--space-5)' }}>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                    <span className="l-xs l-muted">or</span>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                  </div>
-
-                  <form onSubmit={submit} className="l-col" style={{ gap: 0 }}>
+                  <form onSubmit={mode === 'link' ? sendLink : submit} className="l-col" style={{ gap: 0 }}>
                     <div className="l-field">
                       <label className="l-label" htmlFor="email">
                         Work email
@@ -228,21 +240,23 @@ function LoginContent() {
                       />
                     </div>
 
-                    <div className="l-field">
-                      <label className="l-label" htmlFor="password">
-                        Password
-                      </label>
-                      <input
-                        className="l-input"
-                        id="password"
-                        type="password"
-                        required
-                        value={form.password}
-                        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                        autoComplete="current-password"
-                        placeholder="············"
-                      />
-                    </div>
+                    {mode === 'password' && (
+                      <div className="l-field">
+                        <label className="l-label" htmlFor="password">
+                          Password
+                        </label>
+                        <input
+                          className="l-input"
+                          id="password"
+                          type="password"
+                          required
+                          value={form.password}
+                          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                          autoComplete="current-password"
+                          placeholder="············"
+                        />
+                      </div>
+                    )}
 
                     <button
                       className={`l-btn l-btn--primary l-btn--lg ${busy ? 'is-loading' : ''}`}
@@ -250,9 +264,29 @@ function LoginContent() {
                       type="submit"
                       disabled={busy}
                     >
-                      {busy ? 'Signing in…' : 'Sign in'}
+                      {busy
+                        ? mode === 'link'
+                          ? 'Sending…'
+                          : 'Signing in…'
+                        : mode === 'link'
+                          ? 'Send my sign-in link'
+                          : 'Sign in'}
                     </button>
                   </form>
+
+                  <div className="l-row" style={{ justifyContent: 'center', marginTop: 'var(--space-4)' }}>
+                    <button
+                      type="button"
+                      className="l-btn l-btn--ghost l-btn--sm"
+                      onClick={() => {
+                        setMode(mode === 'link' ? 'password' : 'link');
+                        setError(null);
+                        setSentTo(null);
+                      }}
+                    >
+                      {mode === 'link' ? 'Sign in with a password instead' : 'Email me a sign-in link instead'}
+                    </button>
+                  </div>
 
                   <div className="l-row" style={{ justifyContent: 'space-between', marginTop: 'var(--space-5)' }}>
                     <button
@@ -357,6 +391,7 @@ export default function LoginPage() {
         </div>
       }
     >
+      <PageEvent name="login_view" />
       <LoginContent />
     </Suspense>
   );

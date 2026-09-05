@@ -124,6 +124,41 @@ export function purgeExpiredSessions(db: Db): number {
   return Number(res.changes ?? 0);
 }
 
+// ------------------------------------------------------------ magic links
+
+const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
+
+/** Single-use sign-in token (LIN-67). Stored hashed, like sessions. */
+export function createMagicLink(db: Db, userId: string): { token: string; expiresAt: string } {
+  const raw = token();
+  const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS).toISOString();
+  db.prepare(
+    'INSERT INTO magic_link_tokens (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)',
+  ).run(hashToken(raw), userId, expiresAt, nowIso());
+  return { token: raw, expiresAt };
+}
+
+/**
+ * Consumes a magic link exactly once and returns the user, or null when the
+ * token is unknown, expired, or already used.
+ */
+export function consumeMagicLink(db: Db, raw: string): User | null {
+  const r = db
+    .prepare(
+      `SELECT u.* FROM magic_link_tokens m JOIN users u ON u.id = m.user_id
+       WHERE m.id = ? AND m.used_at IS NULL AND m.expires_at > ?`,
+    )
+    .get(hashToken(raw), nowIso()) as Row | undefined;
+  if (!r) return null;
+  db.prepare('UPDATE magic_link_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL').run(
+    nowIso(),
+    hashToken(raw),
+  );
+  const user = toUser(r);
+  if (!user.emailVerifiedAt) markEmailVerified(db, user.id);
+  return user;
+}
+
 // -------------------------------------------------------------- workspaces
 
 function toWorkspace(r: Row): Workspace {

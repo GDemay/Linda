@@ -5,16 +5,18 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
 import { StateBar, type JourneyState } from '../components/StateBar.tsx';
+import { PageEvent } from '../components/PageEvent.tsx';
 
 function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramState = searchParams.get('state') as JourneyState | null;
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', workspaceName: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [existingEmail, setExistingEmail] = useState<string | null>(null);
   const [showDestructive, setShowDestructive] = useState(false);
   const [customState, setCustomState] = useState<JourneyState>(paramState || 'live');
 
@@ -32,12 +34,19 @@ function SignupContent() {
     setBusy(true);
     setError(null);
     try {
-      const { workspace } = await api('/auth/signup', {
-        body: { ...form, workspaceName: form.workspaceName || undefined },
+      const data = await api<{ created: boolean; workspace: { id: string } }>('/auth/signup', {
+        // Password is optional: blank means "sign in by email link" (LIN-67 fix #5).
+        body: { ...form, password: form.password || undefined },
       });
+      if (!data.created) {
+        // Idempotent re-signup: the account exists, a sign-in link is on its way.
+        setExistingEmail(form.email);
+        setBusy(false);
+        return;
+      }
       setSuccess(true);
       setTimeout(() => {
-        router.push(`/onboarding?workspace=${workspace.id}`);
+        router.push(`/onboarding?workspace=${data.workspace.id}`);
       }, 1200);
     } catch (err) {
       setError((err as Error).message);
@@ -59,7 +68,7 @@ function SignupContent() {
               : 'live';
 
   function handleDiscard() {
-    setForm({ name: '', email: '', password: '', workspaceName: '' });
+    setForm({ name: '', email: '', password: '' });
     setError(null);
     setShowDestructive(false);
     setCustomState('empty');
@@ -142,6 +151,28 @@ function SignupContent() {
                     Free for 14 days. No card. Your first agent is working in about four minutes.
                   </p>
 
+                  {existingEmail && (
+                    <div className="l-banner l-banner--warning" style={{ marginBottom: 'var(--space-5)' }}>
+                      <div>
+                        <b>You already have a workspace.</b>
+                        <br />
+                        We emailed a sign-in link to <b>{existingEmail}</b> — open it to jump straight back in.
+                      </div>
+                      <div className="l-row" style={{ marginTop: 'var(--space-3)' }}>
+                        <Link href="/login" className="l-btn l-btn--secondary l-btn--sm">
+                          Resend the link
+                        </Link>
+                        <button
+                          type="button"
+                          className="l-btn l-btn--ghost l-btn--sm"
+                          onClick={() => setExistingEmail(null)}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {effectiveState === 'error' && (
                     <div className="l-col" style={{ gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
                       <div className="l-banner l-banner--danger">
@@ -193,27 +224,6 @@ function SignupContent() {
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    className="l-btn l-btn--secondary l-btn--lg"
-                    style={{ width: '100%', marginBottom: 'var(--space-3)' }}
-                  >
-                    Continue with Google
-                  </button>
-                  <button
-                    type="button"
-                    className="l-btn l-btn--secondary l-btn--lg"
-                    style={{ width: '100%', marginBottom: 'var(--space-5)' }}
-                  >
-                    Continue with Microsoft
-                  </button>
-
-                  <div className="l-row" style={{ marginBottom: 'var(--space-5)' }}>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                    <span className="l-xs l-muted">or</span>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                  </div>
-
                   <form onSubmit={submit} className="l-col" style={{ gap: 0 }}>
                     <div className="l-field">
                       <label className="l-label" htmlFor="name">
@@ -244,38 +254,28 @@ function SignupContent() {
                         autoComplete="email"
                         placeholder="you@company.com"
                       />
+                      <span className="l-help">
+                        Your workspace is named after your email&apos;s domain — you can rename it later.
+                      </span>
                     </div>
 
                     <div className="l-field">
                       <label className="l-label" htmlFor="password">
-                        Password
+                        Password <span className="l-xs l-muted">(optional)</span>
                       </label>
                       <input
                         className="l-input"
                         id="password"
                         type="password"
-                        required
                         minLength={10}
                         value={form.password}
                         onChange={set('password')}
                         autoComplete="new-password"
                         placeholder="············"
                       />
-                      <span className="l-help">At least 10 characters.</span>
-                    </div>
-
-                    <div className="l-field">
-                      <label className="l-label" htmlFor="workspaceName">
-                        Company name (optional)
-                      </label>
-                      <input
-                        className="l-input"
-                        id="workspaceName"
-                        value={form.workspaceName}
-                        onChange={set('workspaceName')}
-                        autoComplete="organization"
-                        placeholder="Acme Studio"
-                      />
+                      <span className="l-help">
+                        At least 10 characters — or leave it blank and we&apos;ll email you a sign-in link.
+                      </span>
                     </div>
 
                     <button
@@ -284,8 +284,13 @@ function SignupContent() {
                       type="submit"
                       disabled={busy}
                     >
-                      {busy ? 'Creating…' : 'Create account'}
+                      {busy ? 'Creating…' : 'Create my workspace →'}
                     </button>
+                    <div className="l-row" style={{ justifyContent: 'center', marginTop: 'var(--space-3)' }}>
+                      <span className="l-xs l-muted">
+                        ✓ No credit card &nbsp;·&nbsp; ✓ 14-day trial &nbsp;·&nbsp; ✓ All 8 agents included
+                      </span>
+                    </div>
                   </form>
 
                   <div className="l-row" style={{ justifyContent: 'space-between', marginTop: 'var(--space-4)' }}>
@@ -404,6 +409,7 @@ export default function SignupPage() {
         </div>
       }
     >
+      <PageEvent name="signup_view" />
       <SignupContent />
     </Suspense>
   );

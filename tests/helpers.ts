@@ -20,12 +20,14 @@ export function uniqueEmail(): string {
 }
 
 export async function newAccount(d: Db, over: Partial<{ email: string; password: string }> = {}) {
-  return signup(d, {
+  const r = await signup(d, {
     email: over.email ?? uniqueEmail(),
     name: 'Ada Lovelace',
     password: over.password ?? VALID_PASSWORD,
     workspaceName: 'Acme',
   });
+  if (!r.created) throw new Error('test signup unexpectedly hit the idempotent path');
+  return r;
 }
 
 /** Drives a workspace all the way through onboarding. */

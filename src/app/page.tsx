@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AGENT_CATALOG, AGENT_KEYS } from '@/lib/agents/catalog.ts';
 import { PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
+import { PageEvent } from './components/PageEvent.tsx';
 
 export const metadata = {
   title: 'Linda — AI Agent Workforce That Onboards Itself',
@@ -11,6 +12,7 @@ export const metadata = {
 export default function Home() {
   return (
     <>
+      <PageEvent name="landing_view" />
       <nav className="topbar">
         <div className="inner">
           <Link href="/" className="brand">
@@ -71,7 +73,8 @@ export default function Home() {
               <div className="pill" style={{ width: 'fit-content' }}>Step 1</div>
               <h3 style={{ fontSize: 17 }}>Sign up in seconds</h3>
               <p className="muted">
-                Email and password. That is the whole gate. No approval queue, no sales gatekeeper.
+                Sign up with your name and email. That&apos;s the entire gate. No approval queue, no sales
+                gatekeeper.
               </p>
             </div>
             <div className="stack" style={{ gap: 8 }}>

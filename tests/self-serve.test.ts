@@ -14,12 +14,15 @@ describe('self-serve path — signup to first completed agent task', () => {
     const d = db();
 
     // 1. Trial signup — the only step with a human, and it is self-serve.
-    const { workspace, token } = await signup(d, {
+    const acct = await signup(d, {
       email: 'trial@acme.example',
       name: 'Trial User',
       password: 'correct-horse-battery',
       workspaceName: 'Acme Trial',
     });
+    expect(acct.created).toBe(true);
+    if (!acct.created) throw new Error('unreachable');
+    const { workspace, token } = acct;
     expect(token).toBeTruthy();
     expect(workspace.onboardingStep).toBe('company_profile');
 

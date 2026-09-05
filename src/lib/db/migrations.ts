@@ -209,6 +209,32 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX tasks_agent_idx ON tasks(agent);
     `,
   },
+  {
+    id: 4,
+    name: 'magic_links_and_events',
+    up: `
+      -- Single-use email sign-in tokens (LIN-67). Like sessions, only the
+      -- sha256 of the raw token is stored.
+      CREATE TABLE magic_link_tokens (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TEXT NOT NULL,
+        used_at    TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX magic_links_user_idx ON magic_link_tokens(user_id);
+
+      -- Zero-cost cookieless funnel events (LIN-67 / audit fix #6). One row
+      -- per event, no visitor identifiers.
+      CREATE TABLE analytics_events (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        data       TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX analytics_events_name_idx ON analytics_events(name, created_at DESC);
+    `,
+  },
 ];
 
 type MigrateDb = {
