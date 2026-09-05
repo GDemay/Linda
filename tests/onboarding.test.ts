@@ -97,6 +97,22 @@ describe('onboarding — idempotence and ordering', () => {
     expect(listWorkspaceAgents(d, workspace.id)).toHaveLength(1);
   });
 
+  it('pre-fills the agent brief from the Company Profile (LIN-2 W2 step 3 / AC4)', async () => {
+    const d = db();
+    const { workspace } = await newAccount(d);
+    submitCompanyProfile(d, workspace.id, PROFILE); // tone: 'friendly'
+    submitGoals(d, workspace.id, { goals: ['capture_leads'] });
+
+    hireAgents(d, workspace.id, { agents: [{ key: 'phone', config: {} }] });
+    const [agent] = listWorkspaceAgents(d, workspace.id);
+    expect((agent.config as Record<string, unknown>).tone).toBe('friendly');
+
+    // An explicit config from the caller still wins over the profile.
+    hireAgents(d, workspace.id, { agents: [{ key: 'marketing', config: { tone: 'formal' } }] });
+    const marketing = listWorkspaceAgents(d, workspace.id).find((a) => a.agentKey === 'marketing')!;
+    expect((marketing.config as Record<string, unknown>).tone).toBe('formal');
+  });
+
   it('never moves the step backwards when an earlier step is resubmitted', async () => {
     const d = db();
     const { workspace } = await newAccount(d);

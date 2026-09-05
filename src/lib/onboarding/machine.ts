@@ -24,6 +24,7 @@ import {
 import { createWorkflow, listWorkflows, recordActivity } from '../repos/workflows.ts';
 import { definitionsForAgent, getWorkflowDefinition } from '../workflows/definitions.ts';
 import { runNow } from '../workflows/runner.ts';
+import { PRICING_COMMON } from '../pricing.ts';
 import { AppError, type OnboardingStep, type Workspace } from '../repos/types.ts';
 
 /**
@@ -281,13 +282,16 @@ export function hireAgents(
     const existingByKey = new Map(
       listWorkflows(db, workspaceId).map((w) => [`${w.workspaceAgentId}:${w.definitionKey}`, w]),
     );
+    // The Company Profile pre-fills the brief (LIN-2 W2 step 3 / AC4): what the
+    // customer told us in step 1 is what the agent starts working with.
+    const profile = findCompanyProfile(db, workspaceId);
     const hired: { key: string; name: string; workflows: string[] }[] = [];
 
     for (const selection of parsed.data.agents) {
       const def = getAgent(selection.key);
       let config: Record<string, unknown>;
       try {
-        config = parseAgentConfig(selection.key, selection.config);
+        config = parseAgentConfig(selection.key, { tone: profile?.tone, ...selection.config });
       } catch (err) {
         throw new AppError('invalid', `invalid config for ${selection.key}`, (err as Error).message);
       }
@@ -515,7 +519,31 @@ export type OnboardingStatus = {
   agents: { key: string; name: string; status: string }[];
   providers: ReturnType<typeof requiredProvidersFor>;
   workflowCount: number;
+  /** Visible from every wizard screen (LIN-2 AC9): trial ends in a downgrade, never a charge. */
+  trial: OnboardingTrial;
 };
+
+export type OnboardingTrial = {
+  plan: string;
+  trialDays: number;
+  /** Whole days remaining; 0 once the window has passed. */
+  daysLeft: number;
+  endsAt: string;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function trialFor(ws: Workspace, now: Date): OnboardingTrial {
+  const trialDays = PRICING_COMMON.trialDays;
+  const start = new Date(ws.createdAt).getTime();
+  const endsAt = new Date(start + trialDays * DAY_MS);
+  return {
+    plan: ws.plan,
+    trialDays,
+    daysLeft: Math.max(0, Math.ceil((endsAt.getTime() - now.getTime()) / DAY_MS)),
+    endsAt: endsAt.toISOString(),
+  };
+}
 
 /** Everything the onboarding UI needs to render, in one round trip. */
 export function getOnboardingStatus(db: Db, workspaceId: string): OnboardingStatus {
@@ -532,6 +560,7 @@ export function getOnboardingStatus(db: Db, workspaceId: string): OnboardingStat
     agents: agents.map((a) => ({ key: a.agentKey, name: a.displayName, status: a.status })),
     providers: requiredProvidersFor(db, workspaceId),
     workflowCount: listWorkflows(db, workspaceId).length,
+    trial: trialFor(ws, new Date()),
   };
 }
 
