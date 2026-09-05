@@ -159,7 +159,10 @@ function normalizeEmail(email) {
 const INTERNAL_EMAIL_PATTERNS = [
   /@agentmail\.to$/,                    // internal QA inboxes
   /^audit\+/,                           // audit+lin49-style QA signups
-  /^founder@redacted\.example$/,       // founder smoke tests
+  ...(process.env.LINDA_INTERNAL_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
 ];
 
 function leadAudience(email) {

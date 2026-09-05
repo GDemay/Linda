@@ -15,8 +15,20 @@ describe('lead visibility — dedupe and audience split', () => {
     expect(leadAudience('qa@agentmail.to')).toBe('internal');
     expect(leadAudience('qa-smoke-ceo@linda.internal')).toBe('internal');
     expect(leadAudience('audit+lin49@example.com')).toBe('internal');
-    expect(leadAudience('founder@redacted.example')).toBe('internal');
     expect(leadAudience('founder@ACME.example')).toBe('external');
+  });
+
+  it('treats LINDA_INTERNAL_EMAILS entries as internal (normalized)', () => {
+    const prev = process.env.LINDA_INTERNAL_EMAILS;
+    process.env.LINDA_INTERNAL_EMAILS = 'Founder-Personal@Example.com,, second@ex.co';
+    try {
+      expect(leadAudience('founder-personal@example.com')).toBe('internal');
+      expect(leadAudience('second@EX.CO')).toBe('internal');
+      expect(leadAudience('other@example.com')).toBe('external');
+    } finally {
+      if (prev === undefined) delete process.env.LINDA_INTERNAL_EMAILS;
+      else process.env.LINDA_INTERNAL_EMAILS = prev;
+    }
   });
 
   it('counts external leads only in uniqueExternalSignups and keeps internal out', async () => {

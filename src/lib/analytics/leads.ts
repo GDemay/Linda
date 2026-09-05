@@ -21,14 +21,28 @@ const INTERNAL_EMAIL_PATTERNS = [
   /@agentmail\.to$/, // internal QA inboxes
   /@linda\.internal$/, // agent smoke-test accounts on the reserved QA domain
   /^audit\+/, // audit+lin49-style QA signups
-  /^founder@redacted\.example$/, // founder smoke tests
 ];
+
+// Extra exact-match internal addresses (e.g. the founder's) live in
+// LINDA_INTERNAL_EMAILS — a comma-separated list — so personal addresses
+// never have to be committed to the repo. Read per call (cheap, small lists)
+// so tests and runtime config changes take effect without a reload.
+function internalEmailsExact(): Set<string> {
+  return new Set(
+    (process.env.LINDA_INTERNAL_EMAILS ?? '')
+      .split(',')
+      .map((e) => normalizeEmail(e))
+      .filter(Boolean),
+  );
+}
 
 export type LeadAudience = 'internal' | 'external';
 
 export function leadAudience(email: string): LeadAudience {
   const norm = normalizeEmail(email);
-  return INTERNAL_EMAIL_PATTERNS.some((re) => re.test(norm)) ? 'internal' : 'external';
+  return INTERNAL_EMAIL_PATTERNS.some((re) => re.test(norm)) || internalEmailsExact().has(norm)
+    ? 'internal'
+    : 'external';
 }
 
 export type Lead = {
