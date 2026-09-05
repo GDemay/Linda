@@ -5,12 +5,14 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
 // Cheapest-tier pricing per 1M tokens (USD). Update if the model changes.
 const PRICING = {
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-5.6-luna': { input: 0.2, output: 1.2 },
+  'gpt-5.4-nano': { input: 0.2, output: 1.25 },
 };
 
 const usage = {
@@ -62,7 +64,7 @@ app.post('/api/chat', async (req, res) => {
       body: JSON.stringify({
         model: OPENAI_MODEL,
         messages: [{ role: 'user', content: message }],
-        max_tokens: 300,
+        max_completion_tokens: 300,
       }),
     });
 
