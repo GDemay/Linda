@@ -25,6 +25,8 @@ export type StepContext = {
    * optional context, never as a requirement.
    */
   knowledge: string[];
+  /** Facts the workspace taught this agent; applied to drafts and cited in the run output (LIN-53). */
+  memories: { id: string; content: string; pinned: boolean }[];
   /** Providers currently connected for this workspace. */
   connectedProviders: string[];
   /** Outputs of steps that already ran, keyed by step key. */
@@ -74,7 +76,15 @@ function draft(kind: string, ctx: StepContext, detail: Record<string, unknown>):
   // Grounding provenance (LIN-54): how many knowledge passages fed this draft.
   // Zero is a normal value — knowledge is optional context, never a gate.
   const knowledgeChunks = ctx.knowledge.length;
-  return { kind, tone, generatedAt: ctx.now().toISOString(), knowledgeChunks, ...detail };
+  return {
+    kind,
+    tone,
+    generatedAt: ctx.now().toISOString(),
+    knowledgeChunks,
+    // Learned facts the model call must respect, cited by memory id (LIN-53).
+    ...(ctx.memories.length > 0 ? { appliedMemories: ctx.memories } : {}),
+    ...detail,
+  };
 }
 
 function def(d: WorkflowDefinition): WorkflowDefinition {

@@ -12,6 +12,11 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-05',
+    title: 'Agents remember what you teach them',
+    body: 'Your agents now keep a memory. Teach a fact once — "always reply in French", "open with the prospect’s situation" — and every future task and run applies it, with the applied memories cited in the result. Correct a deliverable and check "Remember this correction" to make it stick. Every memory is inspectable in the agent card: pin it, edit it, or delete it, and every change is logged in your workspace activity.',
+  },
+  {
+    date: '2026-09-05',
     title: 'Pricing, changelog, and data export',
     body: 'Published pricing is now live at /pricing. Added a public changelog. Workspaces can export their data and delete their account at any time — no support ticket required.',
   },

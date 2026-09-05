@@ -16,6 +16,7 @@ import {
   startStep,
 } from '../repos/workflows.ts';
 import type { WorkflowRun } from '../repos/types.ts';
+import { memoriesForAgent } from '../memories/service.ts';
 import { getWorkflowDefinition, type StepContext } from './definitions.ts';
 
 export const MAX_ATTEMPTS = 3;
@@ -102,6 +103,10 @@ export async function executeRun(db: Db, run: WorkflowRun, opts: RunnerOptions =
   }
   const input = parsed.data as Record<string, unknown>;
 
+  // Persistent memory (LIN-53): the same facts the task engine injects, read
+  // off the workspace agent's catalog key so both paths stay in sync.
+  const memories = agent ? memoriesForAgent(db, run.workspaceId, agent.agentKey) : [];
+
   const ctx: StepContext = {
     workspaceId: run.workspaceId,
     workflowId: workflow.id,
@@ -113,6 +118,7 @@ export async function executeRun(db: Db, run: WorkflowRun, opts: RunnerOptions =
     knowledge: agent
       ? groundingForAgent(db, run.workspaceId, agent.agentKey, { now }).blocks
       : groundingForAgent(db, run.workspaceId, null, { now }).blocks,
+    memories: memories.map((m) => ({ id: m.id, content: m.content, pinned: m.pinned })),
     connectedProviders: providers,
     steps: {},
     now,
@@ -188,14 +194,22 @@ export async function executeRun(db: Db, run: WorkflowRun, opts: RunnerOptions =
     }
   }
 
-  completeRun(db, run.id, { status: 'succeeded', output: ctx.steps });
+  completeRun(db, run.id, {
+    status: 'succeeded',
+    // Memories are cited in the run output itself, so the user can trace any
+    // draft back to the learned fact it applied.
+    output:
+      memories.length > 0
+        ? { ...ctx.steps, appliedMemories: memories.map((m) => ({ id: m.id, content: m.content, pinned: m.pinned })) }
+        : ctx.steps,
+  });
   recordActivity(db, {
     workspaceId: run.workspaceId,
     actorType: 'agent',
     actorId: workflow.workspaceAgentId,
     kind: 'run.succeeded',
     summary: `${workflow.name} completed`,
-    data: { runId: run.id, steps: stepStatuses },
+    data: { runId: run.id, steps: stepStatuses, appliedMemoryIds: memories.map((m) => m.id) },
   });
   // Metered after success: estimated tokens per executed step land in the
   // append-only ledger, then the spend cap enforces its 80/100 behavior.

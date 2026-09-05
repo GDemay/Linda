@@ -123,6 +123,19 @@ export type Task = {
   error: string | null;
 };
 
+/** One learned fact an agent retains across runs (LIN-53). */
+export type AgentMemory = {
+  id: string;
+  workspaceId: string;
+  agentKey: string;
+  content: string;
+  pinned: boolean;
+  source: 'manual' | 'correction';
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ActivityEvent = {
   id: string;
   workspaceId: string;

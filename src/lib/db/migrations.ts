@@ -343,6 +343,34 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX knowledge_chunks_workspace_idx ON knowledge_chunks(workspace_id);
     `,
   },
+  {
+    // LIN-53 (W7 differentiator): persistent, editable agent memory. Facts a
+    // workspace taught an agent survive across runs; edits land in the
+    // activity log, not a separate history table.
+    //
+    // From the LIN-53 lineage; renumbered 6 -> 7 during the rebase onto the
+    // LIN-54 knowledge merge because both lineages added a migration with
+    // id 6. Prod (main) DBs that already applied 6 = knowledge get this as 7.
+    id: 7,
+    name: 'agent_memories',
+    up: `
+      CREATE TABLE agent_memories (
+        id                TEXT PRIMARY KEY,
+        workspace_id      TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        -- Catalog agent key, not workspace_agent id: both execution paths
+        -- (task engine by key, workflow runner via the agent row's key) can
+        -- resolve it without a join.
+        agent_key         TEXT NOT NULL,
+        content           TEXT NOT NULL,
+        pinned            INTEGER NOT NULL DEFAULT 0,
+        source            TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual','correction')),
+        created_by_user_id TEXT REFERENCES users(id),
+        created_at        TEXT NOT NULL,
+        updated_at        TEXT NOT NULL
+      );
+      CREATE INDEX agent_memories_workspace_idx ON agent_memories(workspace_id, agent_key, created_at DESC);
+    `,
+  },
 ];
 type MigrateDb = {
   exec(sql: string): void;

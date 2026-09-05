@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { MemoryPanel, type Memory } from '@/app/components/MemoryPanel.tsx';
 
 type Overview = {
   workspace: { id: string; name: string; onboardingStep: string };
@@ -250,6 +251,7 @@ function Dashboard() {
   const [kbUrl, setKbUrl] = useState('');
   const [kbScope, setKbScope] = useState<string[]>([]);
   const [removingDoc, setRemovingDoc] = useState<KnowledgeDoc | null>(null);
+  const [memories, setMemories] = useState<Memory[]>([]);
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
@@ -264,15 +266,22 @@ function Dashboard() {
   const [submittingTask, setSubmittingTask] = useState(false);
   const [latestTask, setLatestTask] = useState<Task | null>(null);
 
+  // Deliverable-edit state (LIN-53): correcting a result can teach the agent.
+  const [editingTask, setEditingTask] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [rememberNote, setRememberNote] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const load = useCallback(async () => {
     if (!workspaceId) return;
-    const [overview, runsRes, activityRes, tasksRes, approvalsRes, knowledgeRes] = await Promise.all([
+    const [overview, runsRes, activityRes, tasksRes, approvalsRes, knowledgeRes, memoriesRes] = await Promise.all([
       api<Overview>(`/workspaces/${workspaceId}`),
       api<{ runs: Run[] }>(`/workspaces/${workspaceId}/runs?limit=15`),
       api<{ events: ActivityEvent[] }>(`/workspaces/${workspaceId}/activity?limit=15`),
       api<{ tasks: Task[] }>(`/tasks?workspaceId=${workspaceId}&limit=10`),
       api<{ approvals: Approval[] }>(`/workspaces/${workspaceId}/approvals?status=pending`),
       api<{ documents: KnowledgeDoc[] }>(`/workspaces/${workspaceId}/knowledge`),
+      api<{ memories: Memory[] }>(`/workspaces/${workspaceId}/memories`),
     ]);
     setData(overview);
     setRuns(runsRes.runs);
@@ -280,6 +289,7 @@ function Dashboard() {
     setTasks(tasksRes.tasks);
     setApprovals(approvalsRes.approvals);
     setKnowledge(knowledgeRes.documents);
+    setMemories(memoriesRes.memories);
   }, [workspaceId]);
 
   useEffect(() => {
@@ -381,10 +391,36 @@ function Dashboard() {
         });
         setLatestTask(res.task);
         setTaskInput('');
+        setEditingTask(false);
+        setRememberNote('');
         await load();
         show(`${res.task.title} — done.`);
       } finally {
         setSubmittingTask(false);
+      }
+    });
+  }
+
+  /** Deliverable edit + "Remember this correction" (LIN-53). */
+  function saveTaskEdit() {
+    if (!latestTask) return;
+    return withActionError(async () => {
+      setSavingEdit(true);
+      try {
+        const res = await api<{ task: Task; memory: Memory | null }>(
+          `/tasks/${latestTask.id}?workspaceId=${workspaceId}`,
+          {
+            method: 'PATCH',
+            body: { output: editText, rememberNote: rememberNote.trim() || undefined },
+          },
+        );
+        setLatestTask(res.task);
+        setEditingTask(false);
+        setRememberNote('');
+        await load();
+        show(res.memory ? 'Saved. The correction is now part of their memory.' : 'Deliverable updated.');
+      } finally {
+        setSavingEdit(false);
       }
     });
   }
@@ -727,8 +763,64 @@ function Dashboard() {
                         <span className="l-spacer" />
                         {statusBadge(latestTask.status)}
                       </div>
-                      <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{latestTask.output}</pre>
-                      <p className="l-xs l-muted l-num" style={{ margin: 0 }}>{latestTask.tokensUsed} tokens used</p>
+                      {editingTask ? (
+                        <div className="l-col" style={{ gap: 'var(--space-2)' }}>
+                          <textarea
+                            className="l-textarea"
+                            rows={8}
+                            aria-label="Edit the deliverable"
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                          />
+                          <label className="l-field">
+                            <span className="l-label">Remember this correction</span>
+                            <input
+                              className="l-input"
+                              placeholder={`What should ${persona(latestTask.agent)} always do next time?`}
+                              value={rememberNote}
+                              onChange={(e) => setRememberNote(e.target.value)}
+                            />
+                          </label>
+                          <div className="l-row" style={{ gap: 8 }}>
+                            <button
+                              className="l-btn l-btn--primary l-btn--sm"
+                              disabled={savingEdit || !editText.trim()}
+                              onClick={saveTaskEdit}
+                            >
+                              {savingEdit ? 'Saving…' : 'Save'}
+                            </button>
+                            <button
+                              className="l-btn l-btn--ghost l-btn--sm"
+                              disabled={savingEdit}
+                              onClick={() => setEditingTask(false)}
+                            >
+                              Cancel
+                            </button>
+                            <span className="l-help">
+                              {rememberNote.trim()
+                                ? `${persona(latestTask.agent)} will apply this on every future task — editable in the agent card below.`
+                                : 'Optional: teach the correction so it sticks.'}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{latestTask.output}</pre>
+                          <p className="l-xs l-muted l-num" style={{ margin: 0 }}>{latestTask.tokensUsed} tokens used</p>
+                          <div>
+                            <button
+                              className="l-btn l-btn--ghost l-btn--sm"
+                              onClick={() => {
+                                setEditText(latestTask.output ?? '');
+                                setRememberNote('');
+                                setEditingTask(true);
+                              }}
+                            >
+                              Edit &amp; correct
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -795,6 +887,14 @@ function Dashboard() {
                     <button className="l-btn l-btn--secondary l-btn--sm" onClick={() => toggleAgent(a.id, a.status)}>
                       {a.status === 'active' ? 'Pause' : 'Resume'}
                     </button>
+                    <MemoryPanel
+                      workspaceId={workspaceId}
+                      agentKey={a.agentKey}
+                      persona={persona(a.agentKey)}
+                      memories={memories.filter((m) => m.agentKey === a.agentKey)}
+                      onChanged={load}
+                      onError={(err) => setActionError(err.message)}
+                    />
                   </article>
                 ))}
               </div>

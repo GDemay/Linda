@@ -6,6 +6,7 @@ import { findWorkspace } from '../repos/accounts.ts';
 import { recordActivity } from '../repos/workflows.ts';
 import { groundingForAgent } from '../knowledge/index.ts';
 import { createTask, countTasks, findTaskById, listTasks } from '../repos/tasks.ts';
+import { citationBlock, memoriesForAgent } from '../memories/service.ts';
 import { recordEvent } from '../analytics/events.ts';
 import { AppError, type Task, type TaskStatus } from '../repos/types.ts';
 import { findTemplate, templatesFor } from './templates.ts';
@@ -61,6 +62,10 @@ export function runTask(db: Db, raw: unknown): Task {
   const grounding = groundingForAgent(db, workspaceId, agent);
   const output = template.render({ persona: def.persona, input: parsed.data.input, knowledge: grounding.blocks });
 
+  // Persistent memory (LIN-53): what this workspace taught this agent rides
+  // along on every task and is cited in the output so the result is traceable.
+  const memories = memoriesForAgent(db, workspaceId, agent);
+
   // The first-value moment in the activation funnel (LIN-67 / audit fix #6).
   const isFirstTask = countTasks(db, workspaceId) === 0;
 
@@ -70,7 +75,7 @@ export function runTask(db: Db, raw: unknown): Task {
     category: template.category,
     title: parsed.data.title ?? template.title,
     input: parsed.data.input,
-    output,
+    output: output + citationBlock(memories),
     status: 'completed',
     tokensUsed: template.tokens,
   });
@@ -80,7 +85,13 @@ export function runTask(db: Db, raw: unknown): Task {
     actorType: 'agent',
     kind: 'task.completed',
     summary: `${def.persona} completed: ${task.title}`,
-    data: { taskId: task.id, agent, template: template.key, tokensUsed: template.tokens },
+    data: {
+      taskId: task.id,
+      agent,
+      template: template.key,
+      tokensUsed: template.tokens,
+      appliedMemoryIds: memories.map((m) => m.id),
+    },
   });
   if (isFirstTask) recordEvent(db, 'first_task_dispatched', { workspaceId, agent });
 
