@@ -16,6 +16,7 @@ export type Workspace = {
   onboardingStep: OnboardingStep;
   onboardingDoneAt: string | null;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type OnboardingStep =
@@ -102,6 +103,23 @@ export type RunStep = {
   error: string | null;
   startedAt: string;
   finishedAt: string | null;
+};
+
+export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export type Task = {
+  id: string;
+  workspaceId: string;
+  agent: string;
+  category: string;
+  title: string;
+  input: string;
+  output: string | null;
+  status: TaskStatus;
+  tokensUsed: number;
+  createdAt: string;
+  completedAt: string | null;
+  error: string | null;
 };
 
 export type ActivityEvent = {

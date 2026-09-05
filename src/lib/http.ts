@@ -57,9 +57,9 @@ export function handle(fn: (req: Request, ctx: any) => Promise<Response> | Respo
   };
 }
 
-export async function body(req: Request): Promise<unknown> {
+export async function body<T = unknown>(req: Request): Promise<T> {
   try {
-    return await req.json();
+    return (await req.json()) as T;
   } catch {
     throw new AppError('invalid', 'expected a JSON body');
   }

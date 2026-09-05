@@ -99,6 +99,117 @@ export function submitCompanyProfile(
   });
 }
 
+// ---------------------------------------------------- profile derivation (AC4)
+
+export type DerivedProfile = {
+  legalName: string;
+  industry: string;
+  size: 'solo' | '2-10' | '11-50' | '51-200' | '200+';
+  website: string | null;
+  description: string;
+  tone: 'professional' | 'friendly' | 'concise' | 'formal';
+  timezone: string;
+};
+
+export function deriveCompanyProfile(text: string, website?: string): { success: boolean; profile: DerivedProfile } {
+  const trimmed = (text || '').trim();
+  const fallback: DerivedProfile = {
+    legalName: '',
+    industry: 'Technology',
+    size: '2-10',
+    website: website?.trim() || null,
+    description: trimmed,
+    tone: 'professional',
+    timezone: 'UTC',
+  };
+
+  if (!trimmed && !website) {
+    return { success: false, profile: fallback };
+  }
+
+  try {
+    let name = '';
+    let industry = 'Technology';
+    let size: DerivedProfile['size'] = '2-10';
+    let tone: DerivedProfile['tone'] = 'professional';
+
+    // 1. Try to extract name
+    const nameMatch = trimmed.match(/(?:we are|i am|company is|at|welcome to)\s+([A-Z][A-Za-z0-9\s&.-]{1,30})/i);
+    if (nameMatch && nameMatch[1]) {
+      name = nameMatch[1].trim().replace(/\s+(?:is|provides|builds|helps|specializes).*/i, '');
+    } else if (website) {
+      try {
+        const url = new URL(website.startsWith('http') ? website : `https://${website}`);
+        const hostParts = url.hostname.replace(/^www\./, '').split('.');
+        if (hostParts[0]) {
+          name = hostParts[0].charAt(0).toUpperCase() + hostParts[0].slice(1);
+        }
+      } catch {}
+    }
+
+    // 2. Try to extract industry
+    const lower = trimmed.toLowerCase();
+    const industryMap: Record<string, string> = {
+      'real estate': 'Real Estate',
+      'letting': 'Real Estate',
+      'property': 'Real Estate',
+      'ecommerce': 'E-commerce',
+      'retail': 'Retail',
+      'software': 'Software & SaaS',
+      'saas': 'Software & SaaS',
+      'tech': 'Technology',
+      'logistics': 'Logistics & Supply Chain',
+      'supply chain': 'Logistics & Supply Chain',
+      'finance': 'Financial Services',
+      'fintech': 'Fintech',
+      'accounting': 'Accounting',
+      'consulting': 'Consulting',
+      'marketing': 'Marketing & Advertising',
+      'agency': 'Marketing Agency',
+      'legal': 'Legal Services',
+      'healthcare': 'Healthcare',
+      'health': 'Healthcare',
+      'education': 'Education',
+      'recruiting': 'Staffing & Recruiting',
+      'hr': 'Human Resources',
+    };
+    for (const [kw, ind] of Object.entries(industryMap)) {
+      if (lower.includes(kw)) {
+        industry = ind;
+        break;
+      }
+    }
+
+    // 3. Try to extract size
+    if (/\b(solo|freelanc|myself|just me)\b/i.test(lower)) size = 'solo';
+    else if (/\b(200\+|enterprise|large)\b/i.test(lower)) size = '200+';
+    else if (/\b(5[1-9]|[6-9]\d|1\d\d|200)\s*(?:people|employees|team|person)\b/i.test(lower)) size = '51-200';
+    else if (/\b(1[1-9]|[2-4]\d|50)\s*(?:people|employees|team|person)\b/i.test(lower)) size = '11-50';
+    else if (/\b([2-9]|10)\s*(?:people|employees|team|person)\b/i.test(lower)) size = '2-10';
+
+    // 4. Try to extract tone
+    if (/\b(friendly|warm|approachable|fun)\b/i.test(lower)) tone = 'friendly';
+    else if (/\b(concise|direct|brief|punchy)\b/i.test(lower)) tone = 'concise';
+    else if (/\b(formal|corporate|legal|serious)\b/i.test(lower)) tone = 'formal';
+    else if (/\b(professional|business)\b/i.test(lower)) tone = 'professional';
+
+    return {
+      success: true,
+      profile: {
+        legalName: name || fallback.legalName,
+        industry,
+        size,
+        website: website?.trim() || null,
+        description: trimmed,
+        tone,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      },
+    };
+  } catch {
+    return { success: false, profile: fallback };
+  }
+}
+
 // --------------------------------------------------------- step 2: goals
 
 export const goalsSchema = z.object({
@@ -121,6 +232,13 @@ export function submitGoals(
     // De-duplicate; the UI can submit the same goal twice from a multi-select.
     const goals = [...new Set(parsed.data.goals)];
     setCompanyGoals(db, workspaceId, goals);
+    recordActivity(db, {
+      workspaceId,
+      actorType: 'user',
+      kind: 'onboarding.goals_saved',
+      summary: 'Company goals saved',
+      data: { goals },
+    });
     advance(db, ws, 'hire_agents');
     const recommended = recommendAgents(goals).map((k) => ({
       key: k,
@@ -207,6 +325,14 @@ export function hireAgents(
       });
     }
 
+    recordActivity(db, {
+      workspaceId,
+      actorType: 'user',
+      kind: 'onboarding.agents_hired',
+      summary: `${hired.length} agent(s) hired`,
+      data: { agents: hired.map((h) => h.key) },
+    });
+
     advance(db, ws, 'connect_tools');
     return { hired, nextStep: requireWorkspace(db, workspaceId).onboardingStep };
   });
@@ -280,6 +406,19 @@ export function submitConnections(
         data: { provider: c.provider },
       });
     }
+    recordActivity(db, {
+      workspaceId,
+      actorType: 'user',
+      kind: 'onboarding.tools_submitted',
+      summary:
+        parsed.data.skip || parsed.data.connections.length === 0
+          ? 'Skipped tool connections'
+          : `Connected ${parsed.data.connections.length} tool(s)`,
+      data: {
+        connected: parsed.data.connections.map((c) => c.provider),
+        skip: parsed.data.skip,
+      },
+    });
     advance(db, ws, 'first_run');
     const state = requiredProvidersFor(db, workspaceId);
     return { connected: state.connected, missing: state.missing, nextStep: requireWorkspace(db, workspaceId).onboardingStep };
@@ -396,4 +535,22 @@ export function getOnboardingStatus(db: Db, workspaceId: string): OnboardingStat
   };
 }
 
+export function abandonOnboarding(
+  db: Db,
+  workspaceId: string,
+  opts: { reason?: string; step?: OnboardingStep } = {},
+): { workspace: Workspace; abandonedStep: OnboardingStep } {
+  const ws = requireWorkspace(db, workspaceId);
+  const step = opts.step ?? ws.onboardingStep;
+  recordActivity(db, {
+    workspaceId,
+    actorType: 'user',
+    kind: 'onboarding.step_abandoned',
+    summary: `Onboarding abandoned at ${step}${opts.reason ? `: ${opts.reason}` : ''}`,
+    data: { step, reason: opts.reason ?? null },
+  });
+  return { workspace: ws, abandonedStep: step };
+}
+
 export { definitionsForAgent };
+

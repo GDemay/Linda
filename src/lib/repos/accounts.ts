@@ -135,6 +135,7 @@ function toWorkspace(r: Row): Workspace {
     onboardingStep: r.onboarding_step as OnboardingStep,
     onboardingDoneAt: r.onboarding_done_at ?? null,
     createdAt: r.created_at,
+    updatedAt: r.updated_at ?? r.created_at,
   };
 }
 
