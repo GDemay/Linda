@@ -116,7 +116,11 @@ export function listLeads(db: Db): Lead[] {
   );
 }
 
-export type LeadStats = {
+/**
+ * Public aggregate metrics — safe to serve unauthenticated (LIN-74).
+ * Counts only; no per-user records.
+ */
+export type LeadStatsSummary = {
   ok: true;
   /** Each executed task drives exactly one model request (prototype parity). */
   totalRequests: number;
@@ -127,6 +131,30 @@ export type LeadStats = {
   internalSignups: number;
   totalTasksExecuted: number;
   completedTasks: number;
+};
+
+export function leadStatsSummary(db: Db): LeadStatsSummary {
+  const leads = listLeads(db);
+  const external = leads.filter((l) => l.audience === 'external');
+
+  return {
+    ok: true,
+    totalRequests: countTasks(db),
+    totalSignups: leads.length,
+    activeTrials: leads.filter((l) => l.status === 'active_trial').length,
+    uniqueExternalSignups: external.length,
+    externalActiveTrials: external.filter((l) => l.status === 'active_trial').length,
+    internalSignups: leads.length - external.length,
+    totalTasksExecuted: countTasks(db),
+    completedTasks: countCompletedTasks(db),
+  };
+}
+
+/**
+ * Per-user detail for the sales digest — PII (emails, names, workspaceIds).
+ * Only the ADMIN_TOKEN-gated /api/stats and /api/leads may return this.
+ */
+export type LeadStatsDetail = {
   recentSignups: Lead[];
   recentTasks: {
     id: string;
@@ -139,22 +167,11 @@ export type LeadStats = {
   }[];
 };
 
-export function leadStats(db: Db): LeadStats {
+export function leadStatsDetail(db: Db): LeadStatsDetail {
   const leads = listLeads(db);
-  const external = leads.filter((l) => l.audience === 'external');
   const tasks = listTasks(db, undefined, { limit: 5 });
-  const totalTasks = countTasks(db);
 
   return {
-    ok: true,
-    totalRequests: totalTasks,
-    totalSignups: leads.length,
-    activeTrials: leads.filter((l) => l.status === 'active_trial').length,
-    uniqueExternalSignups: external.length,
-    externalActiveTrials: external.filter((l) => l.status === 'active_trial').length,
-    internalSignups: leads.length - external.length,
-    totalTasksExecuted: totalTasks,
-    completedTasks: countCompletedTasks(db),
     recentSignups: leads.slice(0, 5),
     recentTasks: tasks.map((t) => ({
       id: t.id,

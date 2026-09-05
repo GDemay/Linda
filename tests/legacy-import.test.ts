@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { createTestDb } from '../src/lib/db/index.ts';
 import { findUserByEmail } from '../src/lib/repos/accounts.ts';
 import { importLegacyLeads } from '../src/lib/analytics/importLegacyLeads.ts';
-import { leadStats } from '../src/lib/analytics/leads.ts';
+import { leadStatsSummary } from '../src/lib/analytics/leads.ts';
 
 /**
  * LIN-58: historical prototype signups are re-imported into a fresh database
@@ -38,7 +38,7 @@ describe('legacy lead import', () => {
     const sarah = findUserByEmail(d, 'sarah.connor@example.com');
     expect(sarah?.createdAt).toBe('2026-09-05T17:16:14.787Z'); // earliest submission wins
 
-    const stats = leadStats(d);
+    const stats = leadStatsSummary(d);
     expect(stats.totalSignups).toBe(2);
     expect(stats.uniqueExternalSignups).toBe(2);
     expect(stats.externalActiveTrials).toBe(2);

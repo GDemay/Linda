@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { signup } from '../src/lib/auth/service.ts';
 import { runTask } from '../src/lib/tasks/engine.ts';
 import { createWorkspace, addMembership } from '../src/lib/repos/accounts.ts';
-import { listLeads, leadStats, leadAudience } from '../src/lib/analytics/leads.ts';
+import { listLeads, leadStatsSummary, leadStatsDetail, leadAudience } from '../src/lib/analytics/leads.ts';
 import { db, newAccount, VALID_PASSWORD } from './helpers.ts';
 
 /**
@@ -48,7 +48,7 @@ describe('lead visibility — dedupe and audience split', () => {
       workspaceName: 'Audit',
     });
 
-    const stats = leadStats(d);
+    const stats = leadStatsSummary(d);
     expect(stats.totalSignups).toBe(4);
     expect(stats.uniqueExternalSignups).toBe(2);
     expect(stats.internalSignups).toBe(2);
@@ -56,6 +56,8 @@ describe('lead visibility — dedupe and audience split', () => {
     expect(stats.activeTrials).toBe(4);
     expect(stats.externalActiveTrials).toBe(2);
     expect(stats.ok).toBe(true);
+    // Public shape must carry no per-user records (LIN-74).
+    expect(Object.keys(stats)).not.toContain('recentSignups');
   });
 
   it('dedupes by email: a user with a second workspace counts once, earliest workspace kept', async () => {
@@ -68,7 +70,7 @@ describe('lead visibility — dedupe and audience split', () => {
     expect(leads).toHaveLength(1);
     expect(leads[0].email).toBe('dup@acme.example');
     expect(leads[0].workspaceId).toBe(workspace.id);
-    expect(leadStats(d).totalSignups).toBe(1);
+    expect(leadStatsSummary(d).totalSignups).toBe(1);
   });
 
   it('reports task counters and recent items for the sales digest', async () => {
@@ -85,12 +87,13 @@ describe('lead visibility — dedupe and audience split', () => {
       input: 'Draft a follow-up for the pending lead',
     });
 
-    const stats = leadStats(d);
+    const stats = leadStatsSummary(d);
     expect(stats.totalTasksExecuted).toBe(2);
     expect(stats.completedTasks).toBe(2);
     expect(stats.totalRequests).toBe(2);
-    expect(stats.recentTasks).toHaveLength(2);
-    expect(stats.recentSignups.map((l) => l.email)).toEqual(['tasks@acme.example']);
+    const detail = leadStatsDetail(d);
+    expect(detail.recentTasks).toHaveLength(2);
+    expect(detail.recentSignups.map((l) => l.email)).toEqual(['tasks@acme.example']);
   });
 
   it('orders recentSignups newest-first', async () => {

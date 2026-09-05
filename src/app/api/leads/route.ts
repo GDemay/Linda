@@ -1,21 +1,17 @@
 import { getDb } from '@/lib/db/index.ts';
 import { listLeads } from '@/lib/analytics/leads.ts';
+import { requireAdmin } from '@/lib/auth/admin.ts';
 import { handle, json } from '@/lib/http.ts';
 
 /**
- * Raw lead list (LIN-59), gated exactly like the legacy prototype: open
- * unless ADMIN_TOKEN is set, in which case ?token= or the x-admin-token
- * header must match.
+ * Raw lead list (LIN-59) — full PII, so it sits entirely behind the
+ * ADMIN_TOKEN gate (LIN-74): ?token= or the x-admin-token header must
+ * match. Unlike the legacy prototype, no token configured means closed
+ * (503), not open.
  */
 export const GET = handle(async (req) => {
-  const adminToken = process.env.ADMIN_TOKEN || '';
-  if (adminToken) {
-    const url = new URL(req.url);
-    const provided = url.searchParams.get('token') || req.headers.get('x-admin-token');
-    if (provided !== adminToken) {
-      return json({ error: 'Unauthorized. Pass ?token=<ADMIN_TOKEN>.' }, { status: 401 });
-    }
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   const leads = listLeads(getDb());
   return json({ count: leads.length, leads });
 });
