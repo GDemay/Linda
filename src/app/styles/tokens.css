@@ -1,0 +1,183 @@
+/* ============================================================
+   Linda Design Tokens  v1.0
+   Single source of truth for colour, type, space, radius,
+   elevation and motion. Ship this file as-is; consume the
+   custom properties from Tailwind config or plain CSS.
+   ============================================================ */
+
+:root {
+  /* --- Brand ------------------------------------------------
+     Linda's accent is a deep, calm teal. It deliberately avoids
+     the purple/violet "AI gradient" cliché that Limova and most
+     of the category use, and it reads as operational software
+     you trust with your inbox, calendar and contracts. */
+  --linda-50:  #eef7f4;
+  --linda-100: #d3ebe4;
+  --linda-200: #a8d7c9;
+  --linda-300: #74bda9;
+  --linda-400: #499f88;
+  --linda-500: #2f8069;   /* interactive default */
+  --linda-600: #246754;   /* primary button, links on white */
+  --linda-700: #1d5244;
+  --linda-800: #173f35;
+  --linda-900: #112e27;
+
+  /* --- Neutrals (warm-cool ink, never pure grey) ---------- */
+  --ink-0:   #ffffff;
+  --ink-25:  #fbfcfc;
+  --ink-50:  #f6f8f8;
+  --ink-100: #eef1f1;
+  --ink-200: #e1e6e6;
+  --ink-300: #c8d0d0;
+  --ink-400: #98a4a4;
+  --ink-500: #6c7878;
+  --ink-600: #4d5757;
+  --ink-700: #363e3e;
+  --ink-800: #232929;
+  --ink-900: #141819;
+  --ink-950: #0d1011;
+
+  /* --- Status ------------------------------------------------ */
+  --success-50:  #e9f7ee;  --success-500: #1f9d55;  --success-700: #16794128;
+  --warning-50:  #fdf4e3;  --warning-500: #c07f10;  --warning-700: #8a5a06;
+  --danger-50:   #fdeeee;  --danger-500:  #cf3b3b;  --danger-700:  #9b2626;
+  --info-50:     #eaf2fd;  --info-500:    #2c6fd4;  --info-700:    #1f5099;
+
+  /* --- Agent identity palette --------------------------------
+     Each Linda agent gets one stable hue used for its avatar
+     ring, activity dots and timeline entries. Chosen for
+     ≥3:1 contrast on both --ink-0 and --ink-950 backgrounds
+     and for hue separation at a glance in a dense list. */
+  --agent-support:   #2c6fd4;  /* Tom    — calls & inbox   */
+  --agent-social:    #b8496b;  /* John   — social media    */
+  --agent-assistant: #2f8069;  /* Charly — general admin   */
+  --agent-sales:     #c07f10;  /* Elio   — prospecting     */
+  --agent-seo:       #7a56c9;  /* Lou    — SEO & content   */
+  --agent-finance:   #0f8f8f;  /* Manue  — bookkeeping     */
+  --agent-legal:     #5b6b7c;  /* Julia  — legal           */
+  --agent-hr:        #a1552b;  /* Rony   — recruiting      */
+
+  /* --- Semantic surface roles (light theme) ------------------ */
+  --bg-canvas:      var(--ink-50);
+  --bg-surface:     var(--ink-0);
+  --bg-raised:      var(--ink-0);
+  --bg-sunken:      var(--ink-100);
+  --bg-inverse:     var(--ink-900);
+  --bg-hover:       var(--ink-100);
+  --bg-selected:    var(--linda-50);
+  --bg-accent:      var(--linda-600);
+  --bg-accent-hover:var(--linda-700);
+
+  --text-primary:   var(--ink-900);
+  --text-secondary: var(--ink-600);
+  --text-tertiary:  var(--ink-500);
+  --text-inverse:   var(--ink-0);
+  --text-accent:    var(--linda-700);
+
+  --border-subtle:  var(--ink-200);
+  --border-default: var(--ink-300);
+  --border-strong:  var(--ink-400);
+  --border-accent:  var(--linda-500);
+
+  /* --- Type -------------------------------------------------
+     One family. Inter (or system fallback) with tabular figures
+     everywhere a number can change: usage meters, counts, money. */
+  --font-sans: "Inter", ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-display: 2.75rem/1.08 var(--font-sans); /* 44px — marketing hero only */
+  --text-h1:      2rem/1.15   var(--font-sans);  /* 32px — page title          */
+  --text-h2:      1.5rem/1.25 var(--font-sans);  /* 24px — section             */
+  --text-h3:      1.125rem/1.35 var(--font-sans);/* 18px — card title          */
+  --text-body:    0.9375rem/1.55 var(--font-sans);/*15px — default UI text     */
+  --text-sm:      0.8125rem/1.5 var(--font-sans);/* 13px — secondary, table    */
+  --text-xs:      0.75rem/1.4 var(--font-sans);  /* 12px — labels, badges      */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --tracking-tight: -0.02em;   /* display & h1 */
+  --tracking-wide: 0.04em;     /* uppercase eyebrow labels */
+
+  /* --- Space (4px base, 8px rhythm) -------------------------- */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px;
+
+  /* --- Radius ------------------------------------------------ */
+  --radius-sm: 6px;    /* badges, inputs inside tables */
+  --radius-md: 10px;   /* buttons, inputs             */
+  --radius-lg: 14px;   /* cards, panels               */
+  --radius-xl: 20px;   /* modals, hero cards          */
+  --radius-full: 999px;
+
+  /* --- Elevation (soft, low-contrast; never black shadows) --- */
+  --shadow-xs: 0 1px 2px rgba(20, 24, 25, 0.05);
+  --shadow-sm: 0 1px 3px rgba(20, 24, 25, 0.07), 0 1px 2px rgba(20, 24, 25, 0.04);
+  --shadow-md: 0 4px 12px rgba(20, 24, 25, 0.08), 0 2px 4px rgba(20, 24, 25, 0.04);
+  --shadow-lg: 0 12px 32px rgba(20, 24, 25, 0.12), 0 4px 8px rgba(20, 24, 25, 0.05);
+  --ring-focus: 0 0 0 3px rgba(47, 128, 105, 0.32);
+
+  /* --- Motion ------------------------------------------------
+     Fast and near-linear. Nothing in Linda bounces. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-instant: 80ms;
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+
+  /* --- Layout ------------------------------------------------ */
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 64px;
+  --content-max: 1180px;
+  --prose-max: 68ch;
+  --topbar-h: 56px;
+}
+
+/* ============================================================
+   Dark theme — role remap only. No component ever hard-codes
+   a raw palette value, so this is the entire dark mode.
+   ============================================================ */
+[data-theme="dark"] {
+  --bg-canvas:      var(--ink-950);
+  --bg-surface:     var(--ink-900);
+  --bg-raised:      var(--ink-800);
+  --bg-sunken:      #0a0d0e;
+  --bg-inverse:     var(--ink-50);
+  --bg-hover:       rgba(255, 255, 255, 0.05);
+  --bg-selected:    rgba(47, 128, 105, 0.16);
+  --bg-accent:      var(--linda-500);
+  --bg-accent-hover:var(--linda-400);
+
+  --text-primary:   var(--ink-50);
+  --text-secondary: var(--ink-300);
+  --text-tertiary:  var(--ink-400);
+  --text-inverse:   var(--ink-950);
+  --text-accent:    var(--linda-300);
+
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-strong:  rgba(255, 255, 255, 0.24);
+  --border-accent:  var(--linda-400);
+
+  --success-500: #4ec27d;
+  --warning-500: #e0a63a;
+  --danger-500:  #f0736f;
+  --info-500:    #6ea6ee;
+
+  --agent-support: #6ea6ee;  --agent-social:  #e58aa6;
+  --agent-assistant:#5fbfa3;  --agent-sales:   #e0a63a;
+  --agent-seo:     #a892e8;  --agent-finance: #46c2c2;
+  --agent-legal:   #9aabbb;  --agent-hr:      #d18a5f;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --ring-focus: 0 0 0 3px rgba(73, 159, 136, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-instant: 0ms; --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; }
+}

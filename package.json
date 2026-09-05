@@ -1,17 +1,30 @@
 {
   "name": "linda",
-  "version": "1.0.0",
-  "description": "Linda test service - OpenAI-backed API with a minimal admin panel",
-  "main": "server.js",
-  "type": "commonjs",
-  "engines": {
-    "node": ">=18"
-  },
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "test": "node --test"
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed": "node --experimental-strip-types scripts/seed.ts",
+    "worker": "node --experimental-strip-types scripts/worker.ts",
+    "e2e": "scripts/e2e.sh"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "next": "15.5.4",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.1",
+    "@types/react": "19.1.13",
+    "@types/react-dom": "19.1.9",
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
   }
 }
