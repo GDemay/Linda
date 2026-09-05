@@ -24,6 +24,17 @@ type Run = {
 
 type ActivityEvent = { id: string; kind: string; summary: string; createdAt: string };
 
+type KnowledgeDoc = {
+  id: string;
+  title: string;
+  source: string;
+  status: 'processing' | 'ready' | 'failed';
+  error: string | null;
+  agentKeys: string[];
+  chunkCount: number;
+  lastUsedAt: string | null;
+};
+
 type CatalogAgent = {
   key: string;
   persona: string;
@@ -233,6 +244,12 @@ function Dashboard() {
   const [catalog, setCatalog] = useState<CatalogAgent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [knowledge, setKnowledge] = useState<KnowledgeDoc[]>([]);
+  const [kbTitle, setKbTitle] = useState('');
+  const [kbText, setKbText] = useState('');
+  const [kbUrl, setKbUrl] = useState('');
+  const [kbScope, setKbScope] = useState<string[]>([]);
+  const [removingDoc, setRemovingDoc] = useState<KnowledgeDoc | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
@@ -249,18 +266,20 @@ function Dashboard() {
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
-    const [overview, runsRes, activityRes, tasksRes, approvalsRes] = await Promise.all([
+    const [overview, runsRes, activityRes, tasksRes, approvalsRes, knowledgeRes] = await Promise.all([
       api<Overview>(`/workspaces/${workspaceId}`),
       api<{ runs: Run[] }>(`/workspaces/${workspaceId}/runs?limit=15`),
       api<{ events: ActivityEvent[] }>(`/workspaces/${workspaceId}/activity?limit=15`),
       api<{ tasks: Task[] }>(`/tasks?workspaceId=${workspaceId}&limit=10`),
       api<{ approvals: Approval[] }>(`/workspaces/${workspaceId}/approvals?status=pending`),
+      api<{ documents: KnowledgeDoc[] }>(`/workspaces/${workspaceId}/knowledge`),
     ]);
     setData(overview);
     setRuns(runsRes.runs);
     setActivity(activityRes.events);
     setTasks(tasksRes.tasks);
     setApprovals(approvalsRes.approvals);
+    setKnowledge(knowledgeRes.documents);
   }, [workspaceId]);
 
   useEffect(() => {
@@ -285,6 +304,30 @@ function Dashboard() {
       setActionError((err as Error).message);
     }
   };
+
+  function addKnowledgeDoc() {
+    return withActionError(async () => {
+      const payload = kbText.trim()
+        ? { title: kbTitle.trim() || undefined, content: kbText, agentKeys: kbScope }
+        : { url: kbUrl.trim(), agentKeys: kbScope };
+      await api(`/workspaces/${workspaceId}/knowledge`, { method: 'POST', body: payload });
+      setKbTitle('');
+      setKbText('');
+      setKbUrl('');
+      show('Added — your agents ground on it from their next task');
+      await load();
+    });
+  }
+
+  function deleteKnowledgeDoc(doc: KnowledgeDoc) {
+    return withActionError(async () => {
+      const res = await api<{ removed: string }>(`/workspaces/${workspaceId}/knowledge/${doc.id}`, {
+        method: 'DELETE',
+      });
+      show(res.removed);
+      await load();
+    });
+  }
 
   function runWorkflow(id: string) {
     return withActionError(async () => {
@@ -418,6 +461,7 @@ function Dashboard() {
               ✅ Approvals {approvals.length > 0 && <span className="l-nav__count l-num">{approvals.length}</span>}
             </a>
             <a className="l-nav__item" href="#agents">🧑‍💼 Agents</a>
+            <a className="l-nav__item" href="#knowledge">📚 Knowledge</a>
             <a className="l-nav__item" href="#activity">📊 Activity</a>
           </nav>
           <div>
@@ -753,6 +797,119 @@ function Dashboard() {
                     </button>
                   </article>
                 ))}
+              </div>
+            </div>
+
+            {/* Knowledge base — the "add it later" landing spot from onboarding. */}
+            <div className="l-card" id="knowledge">
+              <div className="l-card__header">
+                <h3>Knowledge</h3>
+                <span className="l-xs l-muted">
+                  {knowledge.length === 0
+                    ? 'nothing uploaded yet'
+                    : `${knowledge.length} document${knowledge.length === 1 ? '' : 's'} · agents ground on these`}
+                </span>
+              </div>
+              <div className="l-card__body l-col" style={{ gap: 'var(--space-3)' }}>
+                {knowledge.length === 0 ? (
+                  <p className="l-sm l-muted" style={{ margin: 0 }}>
+                    Add pricing sheets, policies or FAQs and your agents draft from them. Skipped this during
+                    setup? This is where it lives.
+                  </p>
+                ) : (
+                  <div className="l-col" style={{ gap: 'var(--space-2)' }}>
+                    {knowledge.map((doc) => (
+                      <div key={doc.id} className="l-row" style={{ gap: 'var(--space-2)', alignItems: 'center' }}>
+                        <span aria-hidden>{doc.status === 'ready' ? '📄' : '⚠️'}</span>
+                        <span className="l-sm" style={{ flex: 1 }}>
+                          {doc.title}
+                          <span className="l-xs l-muted" style={{ marginLeft: 'var(--space-2)' }}>
+                            {doc.status === 'ready'
+                              ? `${doc.chunkCount} chunks${doc.agentKeys.length ? ` · ${doc.agentKeys.length} agent(s)` : ' · everyone'}${doc.lastUsedAt ? ` · last used ${new Date(doc.lastUsedAt).toLocaleDateString()}` : ''}`
+                              : `couldn't be read${doc.error ? `: ${doc.error}` : ''}`}
+                          </span>
+                        </span>
+                        <button
+                          className="l-btn l-btn--ghost l-btn--sm"
+                          onClick={() =>
+                            setConfirm({
+                              title: `Remove "${doc.title}"?`,
+                              body: `This deletes the document and every extracted chunk derived from it — fully, immediately. Your agents simply stop grounding on it; nothing else in your workspace changes.`,
+                              confirmLabel: 'Delete document',
+                              onConfirm: () => deleteKnowledgeDoc(doc),
+                            })
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <form
+                  className="l-row"
+                  style={{ gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end' }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (kbText.trim() || kbUrl.trim()) addKnowledgeDoc();
+                  }}
+                >
+                  <label className="l-field" style={{ flex: '1 1 160px', margin: 0 }}>
+                    <span className="l-label">Title</span>
+                    <input
+                      className="l-input"
+                      placeholder='e.g. "Pricing 2026"'
+                      maxLength={200}
+                      value={kbTitle}
+                      onChange={(e) => setKbTitle(e.target.value)}
+                    />
+                  </label>
+                  <label className="l-field" style={{ flex: '2 1 240px', margin: 0 }}>
+                    <span className="l-label">Paste text</span>
+                    <input
+                      className="l-input"
+                      placeholder="Paste any document your agents should know by heart…"
+                      value={kbText}
+                      onChange={(e) => setKbText(e.target.value)}
+                    />
+                  </label>
+                  <label className="l-field" style={{ flex: '2 1 240px', margin: 0 }}>
+                    <span className="l-label">Or a URL</span>
+                    <input
+                      className="l-input"
+                      type="url"
+                      placeholder="https://your-site.com/pricing"
+                      value={kbUrl}
+                      onChange={(e) => setKbUrl(e.target.value)}
+                      disabled={kbText.trim().length > 0}
+                    />
+                  </label>
+                  <button
+                    className="l-btn l-btn--secondary l-btn--sm"
+                    disabled={!kbText.trim() && !kbUrl.trim()}
+                    type="submit"
+                  >
+                    Add
+                  </button>
+                </form>
+                {data.agents.length > 0 && (
+                  <div className="l-row" style={{ gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                    <span className="l-xs l-muted">Ground everyone, or only:</span>
+                    {data.agents.map((a) => (
+                      <label key={a.id} className="l-row l-xs" style={{ gap: 'var(--space-1)' }}>
+                        <input
+                          type="checkbox"
+                          checked={kbScope.includes(a.agentKey)}
+                          onChange={() =>
+                            setKbScope((v) => (v.includes(a.agentKey) ? v.filter((k) => k !== a.agentKey) : [...v, a.agentKey]))
+                          }
+                        />
+                        {a.displayName}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
