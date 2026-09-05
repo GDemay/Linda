@@ -23,6 +23,25 @@ type Run = {
 
 type ActivityEvent = { id: string; kind: string; summary: string; createdAt: string };
 
+type CatalogAgent = {
+  key: string;
+  persona: string;
+  role: string;
+  taskTemplates: { key: string; category: string; title: string }[];
+};
+
+type Task = {
+  id: string;
+  agent: string;
+  category: string;
+  title: string;
+  input: string;
+  output: string | null;
+  status: string;
+  tokensUsed: number;
+  createdAt: string;
+};
+
 function statusPill(status: string) {
   const cls = status === 'succeeded' ? 'ok' : status === 'failed' ? 'danger' : status === 'queued' || status === 'running' ? 'warn' : '';
   return <span className={`pill ${cls}`}>{status}</span>;
@@ -35,20 +54,37 @@ function Dashboard() {
   const [data, setData] = useState<Overview | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [catalog, setCatalog] = useState<CatalogAgent[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
 
+  // Composer state: which hired agent, which template, what instruction.
+  const [taskAgent, setTaskAgent] = useState<string>('');
+  const [taskTemplate, setTaskTemplate] = useState<string>('');
+  const [taskInput, setTaskInput] = useState('');
+  const [submittingTask, setSubmittingTask] = useState(false);
+  const [latestTask, setLatestTask] = useState<Task | null>(null);
+
   const load = useCallback(async () => {
     if (!workspaceId) return;
-    const [overview, runsRes, activityRes] = await Promise.all([
+    const [overview, runsRes, activityRes, tasksRes] = await Promise.all([
       api<Overview>(`/workspaces/${workspaceId}`),
       api<{ runs: Run[] }>(`/workspaces/${workspaceId}/runs?limit=15`),
       api<{ events: ActivityEvent[] }>(`/workspaces/${workspaceId}/activity?limit=15`),
+      api<{ tasks: Task[] }>(`/tasks?workspaceId=${workspaceId}&limit=10`),
     ]);
     setData(overview);
     setRuns(runsRes.runs);
     setActivity(activityRes.events);
+    setTasks(tasksRes.tasks);
   }, [workspaceId]);
+
+  useEffect(() => {
+    api<{ agents: CatalogAgent[] }>('/catalog')
+      .then((res) => setCatalog(res.agents))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!workspaceId) {
@@ -84,12 +120,44 @@ function Dashboard() {
     }
   }
 
+  async function submitTask() {
+    if (!taskAgent || !taskInput.trim()) return;
+    setSubmittingTask(true);
+    setError(null);
+    try {
+      const res = await api<{ task: Task }>('/tasks', {
+        body: {
+          workspaceId,
+          agent: taskAgent,
+          template: taskTemplate || undefined,
+          input: taskInput.trim(),
+        },
+      });
+      setLatestTask(res.task);
+      setTaskInput('');
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSubmittingTask(false);
+    }
+  }
+
   if (!workspaceId) return null;
   if (error && !data) return <main className="shell"><p className="error">{error}</p></main>;
   if (!data) return <main className="shell"><p className="muted">Loading…</p></main>;
 
   const agentName = (workspaceAgentId: string) =>
     data.agents.find((a) => a.id === workspaceAgentId)?.displayName ?? 'Agent';
+
+  // Catalog data for the composer, restricted to agents this workspace hired.
+  const catalogByKey = Object.fromEntries(catalog.map((c) => [c.key, c]));
+  const hiredKeys = data.agents.map((a) => a.agentKey);
+  const hiredCatalog = catalog.filter((c) => hiredKeys.includes(c.key));
+  const activeAgentKey = taskAgent || hiredCatalog[0]?.key || '';
+  const templates = catalogByKey[activeAgentKey]?.taskTemplates ?? [];
+  const activeTemplateKey = taskTemplate || templates[0]?.key || '';
+  const persona = (agentKey: string) => catalogByKey[agentKey]?.persona ?? agentKey;
 
   return (
     <>
@@ -132,6 +200,73 @@ function Dashboard() {
                   {a.status === 'active' ? 'Pause' : 'Resume'}
                 </button>
               </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="stack">
+          <h2>Give an agent a task</h2>
+          {hiredCatalog.length === 0 && <p className="muted">Hire an agent first — finish onboarding.</p>}
+          {hiredCatalog.length > 0 && (
+            <div className="card stack" style={{ gap: 10 }}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <label>
+                  <span className="muted">Agent</span>{' '}
+                  <select value={activeAgentKey} onChange={(e) => { setTaskAgent(e.target.value); setTaskTemplate(''); }}>
+                    {hiredCatalog.map((c) => (
+                      <option key={c.key} value={c.key}>{c.persona} · {c.role}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span className="muted">Task</span>{' '}
+                  <select value={activeTemplateKey} onChange={(e) => setTaskTemplate(e.target.value)}>
+                    {templates.map((t) => (
+                      <option key={t.key} value={t.key}>{t.title}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <textarea
+                rows={3}
+                placeholder={`Tell ${persona(activeAgentKey)} what you need, in your own words…`}
+                value={taskInput}
+                onChange={(e) => setTaskInput(e.target.value)}
+              />
+              <div className="row">
+                <button onClick={submitTask} disabled={submittingTask || !taskInput.trim()}>
+                  {submittingTask ? 'Working…' : `Ask ${persona(activeAgentKey)}`}
+                </button>
+                <span className="muted">Runs instantly — you see the result here.</span>
+              </div>
+              {latestTask && (
+                <div className="stack" style={{ gap: 4 }}>
+                  <div className="spread">
+                    <strong>{latestTask.title}</strong>
+                    {statusPill(latestTask.status)}
+                  </div>
+                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{latestTask.output}</pre>
+                  <p className="muted">{latestTask.tokensUsed} tokens used</p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="stack">
+          <h2>Recent tasks</h2>
+          {tasks.length === 0 && <p className="muted">No tasks yet — ask an agent for something above.</p>}
+          <div className="stack" style={{ gap: 8 }}>
+            {tasks.map((t) => (
+              <div key={t.id} className="card spread">
+                <div>
+                  <h3>{t.title}</h3>
+                  <p className="muted">
+                    {persona(t.agent)} · {t.category} · {new Date(t.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                {statusPill(t.status)}
+              </div>
             ))}
           </div>
         </section>
