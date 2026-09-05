@@ -1,10 +1,9 @@
 /**
- * Outbound transactional email (LIN-67). Resend is the primary transport;
- * AgentMail is the fallback — the Resend test domain (resend.dev) can only
- * deliver to the account owner, so without a verified domain most recipient
- * addresses are rejected there and AgentMail carries production traffic.
- * Sending never throws: auth flows log the outcome and carry on, because a
- * mail outage must not take signup or login down with it.
+ * Outbound transactional email (LIN-67). Resend is the primary transport,
+ * sending from the verified domain crayon-finance.org (the test domain
+ * resend.dev could only deliver to the account owner); AgentMail stays as
+ * the fallback. Sending never throws: auth flows log the outcome and carry
+ * on, because a mail outage must not take signup or login down with it.
  */
 
 export type OutboundEmail = {
@@ -17,7 +16,9 @@ export type OutboundEmail = {
 export type SendResult = { via: 'resend' | 'agentmail' | 'none'; id?: string };
 
 const RESEND_KEY = process.env.RESEND_API_KEY;
-const RESEND_FROM = process.env.RESEND_FROM ?? 'Linda <onboarding@resend.dev>';
+// Default matches the production env var on Railway (LIN-78): the verified
+// Resend domain, not the owner-only resend.dev test domain.
+const RESEND_FROM = process.env.RESEND_FROM ?? 'Linda <noreply@crayon-finance.org>';
 const AGENTMAIL_KEY = process.env.AGENTMAIL_API_KEY;
 const AGENTMAIL_FROM = process.env.AGENTMAIL_FROM ?? 'guillaume-5295@agentmail.to';
 
