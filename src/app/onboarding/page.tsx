@@ -32,6 +32,7 @@ type Status = {
   } | null;
   agents: { key: string; name: string; status: string }[];
   providers: { required: string[]; optional: string[]; connected: string[]; missing: string[] };
+  knowledge: { id: string; title: string; status: string; chunkCount: number; lastUsedAt: string | null }[];
   workflowCount: number;
 };
 
@@ -48,7 +49,7 @@ type CatalogAgent = {
 
 type Catalog = { agents: CatalogAgent[]; goals: { key: string; label: string }[] };
 
-const ORDER: OnboardingStep[] = ['company_profile', 'pick_goals', 'hire_agents', 'connect_tools', 'first_run'];
+const ORDER: OnboardingStep[] = ['company_profile', 'pick_goals', 'hire_agents', 'add_knowledge', 'connect_tools', 'first_run'];
 
 const STEP_OF = Object.fromEntries(ORDER.map((s, i) => [s, `Step ${i + 1} of ${ORDER.length}`]));
 
@@ -92,6 +93,10 @@ function OnboardingFlow() {
   const [picked, setPicked] = useState<string[]>([]);
   const [connected, setConnected] = useState<string[]>([]);
   const [prefilled, setPrefilled] = useState(false);
+  const [kbTitle, setKbTitle] = useState('');
+  const [kbText, setKbText] = useState('');
+  const [kbUrl, setKbUrl] = useState('');
+  const [kbScope, setKbScope] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
@@ -211,6 +216,12 @@ function OnboardingFlow() {
   const clearSelections = () => {
     if (status.step === 'pick_goals') setGoals([]);
     if (status.step === 'hire_agents') setPicked([]);
+    if (status.step === 'add_knowledge') {
+      setKbTitle('');
+      setKbText('');
+      setKbUrl('');
+      setKbScope([]);
+    }
     if (status.step === 'connect_tools') setConnected([]);
     setCustomState('live');
   };
@@ -479,6 +490,159 @@ function OnboardingFlow() {
               </span>
             </div>
           </form>
+        );
+
+      case 'add_knowledge':
+        return (
+          <div className="l-col" style={{ gap: 0, maxWidth: '64ch' }}>
+            <p className="l-eyebrow">{STEP_OF.add_knowledge} · optional</p>
+            <h1 style={{ margin: 'var(--space-2) 0' }}>Give your agents your own material</h1>
+            <p className="l-sm l-muted" style={{ maxWidth: '54ch' }}>
+              Paste a document or add a URL — pricing sheets, policies, FAQs — and every agent
+              drafts from it. <b>You can skip this and add documents later</b>; your agents work
+              fine from your business profile alone.
+            </p>
+
+            <div className="l-col" style={{ gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
+              {status.knowledge.length > 0 && (
+                <div className="l-card" style={{ padding: 'var(--space-4)' }}>
+                  <div className="l-card__header" style={{ padding: 0, marginBottom: 'var(--space-2)' }}>
+                    <h3 className="l-sm">Added ({status.knowledge.length})</h3>
+                  </div>
+                  <div className="l-col" style={{ gap: 'var(--space-2)' }}>
+                    {status.knowledge.map((d) => (
+                      <div key={d.id} className="l-row" style={{ gap: 'var(--space-2)', alignItems: 'center' }}>
+                        <span aria-hidden>{d.status === 'ready' ? '📄' : '⚠️'}</span>
+                        <span className="l-sm" style={{ flex: 1 }}>{d.title}</span>
+                        {d.status === 'ready' ? (
+                          <span className="l-badge">{d.chunkCount} chunks</span>
+                        ) : (
+                          <span className="l-badge l-badge--warning">couldn&apos;t read — you can retry or delete</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <form
+                className="l-card"
+                style={{ padding: 'var(--space-4)', gap: 'var(--space-3)', display: 'flex', flexDirection: 'column' }}
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const payload = kbText.trim()
+                    ? { title: kbTitle.trim() || undefined, content: kbText, agentKeys: kbScope }
+                    : { url: kbUrl.trim(), agentKeys: kbScope };
+                  const okAdd = await step(() => api(`/workspaces/${workspaceId}/knowledge`, { method: 'POST', body: payload }));
+                  if (okAdd) {
+                    setKbTitle('');
+                    setKbText('');
+                    setKbUrl('');
+                  }
+                }}
+              >
+                <b className="l-sm">Paste text</b>
+                <input
+                  className="l-input"
+                  placeholder={'Title, e.g. "Pricing 2026"'}
+                  maxLength={200}
+                  value={kbTitle}
+                  onChange={(e) => setKbTitle(e.target.value)}
+                />
+                <textarea
+                  className="l-textarea"
+                  rows={4}
+                  placeholder="Paste any document your agents should know by heart…"
+                  maxLength={200000}
+                  value={kbText}
+                  onChange={(e) => setKbText(e.target.value)}
+                />
+                <b className="l-sm" style={{ marginTop: 'var(--space-2)' }}>Or add a URL</b>
+                <input
+                  className="l-input"
+                  type="url"
+                  placeholder="https://your-site.com/pricing"
+                  value={kbUrl}
+                  onChange={(e) => setKbUrl(e.target.value)}
+                  disabled={kbText.trim().length > 0}
+                />
+                <b className="l-sm" style={{ marginTop: 'var(--space-2)' }}>Or upload a text file</b>
+                <input
+                  className="l-input"
+                  type="file"
+                  accept=".txt,.md,.csv,.json,text/*"
+                  disabled={busy || (kbText.trim().length > 0 || kbUrl.trim().length > 0)}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = ''; // allow re-adding the same file after a failure
+                    if (!file) return;
+                    const content = await file.text();
+                    const okAdd = await step(() =>
+                      api(`/workspaces/${workspaceId}/knowledge`, {
+                        method: 'POST',
+                        body: { title: kbTitle.trim() || file.name, content, filename: file.name, agentKeys: kbScope },
+                      }),
+                    );
+                    if (okAdd) {
+                      setKbTitle('');
+                      setKbText('');
+                      setKbUrl('');
+                    }
+                  }}
+                />
+                {status.agents.length > 0 && (
+                  <div className="l-col" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                    <span className="l-xs l-muted">Ground everyone, or only:</span>
+                    <div className="l-row" style={{ gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                      {status.agents.map((a) => (
+                        <label key={a.key} className="l-row l-xs" style={{ gap: 'var(--space-1)' }}>
+                          <input
+                            type="checkbox"
+                            checked={kbScope.includes(a.key)}
+                            onChange={() => setKbScope((v) => toggle(v, a.key))}
+                          />
+                          {a.name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="l-row" style={{ marginTop: 'var(--space-1)' }}>
+                  <button
+                    className="l-btn l-btn--secondary"
+                    disabled={busy || (!kbText.trim() && !kbUrl.trim())}
+                    type="submit"
+                  >
+                    Add document
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="l-banner" style={{ marginTop: 'var(--space-5)', maxWidth: '64ch' }}>
+              🗑️ Anything you add here can be deleted later in one click — along with every
+              extracted chunk derived from it.
+            </div>
+
+            <div className="l-row" style={{ marginTop: 'var(--space-6)' }}>
+              <button
+                className="l-btn l-btn--secondary l-btn--lg"
+                type="button"
+                disabled={busy}
+                onClick={() => step(() => api(`/workspaces/${workspaceId}/onboarding/knowledge`, { body: { documents: [], skip: true } }))}
+              >
+                Skip — I&apos;ll add this later
+              </button>
+              <span className="l-spacer" />
+              <button
+                className="l-btn l-btn--primary l-btn--lg"
+                disabled={busy}
+                onClick={() => step(() => api(`/workspaces/${workspaceId}/onboarding/knowledge`, { body: { documents: [], skip: status.knowledge.length === 0 } }))}
+              >
+                {busy ? 'Saving…' : status.knowledge.length > 0 ? 'Continue' : 'Continue without knowledge'}
+              </button>
+            </div>
+          </div>
         );
 
       case 'connect_tools':

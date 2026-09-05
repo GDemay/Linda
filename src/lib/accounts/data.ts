@@ -12,6 +12,7 @@ import {
   listWorkspacesForUser,
 } from '../repos/accounts.ts';
 import { listActivity, listRuns, listWorkflows } from '../repos/workflows.ts';
+import { listDocuments } from '../repos/knowledge.ts';
 import { listApprovalItems } from '../repos/approvals.ts';
 import { AppError } from '../repos/types.ts';
 
@@ -32,6 +33,7 @@ export function exportWorkspaceData(db: Db, workspaceId: string) {
     agents: listWorkspaceAgents(db, workspaceId),
     connections: listConnections(db, workspaceId).map(({ ...c }) => c),
     workflows: listWorkflows(db, workspaceId),
+    knowledge: listDocuments(db, workspaceId),
     runs: listRuns(db, workspaceId, { limit: 200 }),
     activity: listActivity(db, workspaceId, 200),
     approvals: listApprovalItems(db, workspaceId),

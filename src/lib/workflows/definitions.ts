@@ -18,6 +18,13 @@ export type StepContext = {
   runId: string;
   /** Config of the owning workspace agent. */
   agentConfig: Record<string, unknown>;
+  /**
+   * Knowledge-base grounding (LIN-54): text blocks from the workspace's
+   * uploaded documents, pre-scoped to this agent and pre-capped. Empty array
+   * means the workspace has no knowledge uploaded — steps must treat it as
+   * optional context, never as a requirement.
+   */
+  knowledge: string[];
   /** Providers currently connected for this workspace. */
   connectedProviders: string[];
   /** Outputs of steps that already ran, keyed by step key. */
@@ -64,7 +71,10 @@ const ok = (output: unknown): StepResult => ({ status: 'ok', output });
  */
 function draft(kind: string, ctx: StepContext, detail: Record<string, unknown>): unknown {
   const tone = (ctx.agentConfig.tone as string) ?? 'professional';
-  return { kind, tone, generatedAt: ctx.now().toISOString(), ...detail };
+  // Grounding provenance (LIN-54): how many knowledge passages fed this draft.
+  // Zero is a normal value — knowledge is optional context, never a gate.
+  const knowledgeChunks = ctx.knowledge.length;
+  return { kind, tone, generatedAt: ctx.now().toISOString(), knowledgeChunks, ...detail };
 }
 
 function def(d: WorkflowDefinition): WorkflowDefinition {

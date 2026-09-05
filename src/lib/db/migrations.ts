@@ -302,8 +302,48 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
-];
+  {
+    // Knowledge base upload & grounding (LIN-54 / LIN-2 spec §4 W8).
+    id: 6,
+    name: 'knowledge',
+    up: `
+      -- A document the workspace uploaded (file contents or a fetched URL).
+      -- agent_keys is a JSON array of catalog keys; empty means the document
+      -- grounds every agent in the workspace (the default, matching how the
+      -- wizard presents the step: workspace-wide unless you narrow it).
+      CREATE TABLE knowledge_documents (
+        id           TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        title        TEXT NOT NULL,
+        source       TEXT NOT NULL CHECK (source IN ('paste','url','file')),
+        source_ref   TEXT NOT NULL DEFAULT '',  -- the URL for fetched docs, the filename for uploads
+        status       TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('processing','ready','failed')),
+        error        TEXT,
+        char_count   INTEGER NOT NULL DEFAULT 0,
+        chunk_count  INTEGER NOT NULL DEFAULT 0,
+        agent_keys   TEXT NOT NULL DEFAULT '[]',
+        last_used_at TEXT,
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+      );
+      CREATE INDEX knowledge_documents_workspace_idx ON knowledge_documents(workspace_id, created_at DESC);
 
+      -- Derived data. Deleting the document row cascades here, so "delete
+      -- removes derived data too" is enforced by the schema, not by callers
+      -- remembering to clean up.
+      CREATE TABLE knowledge_chunks (
+        id          TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        seq         INTEGER NOT NULL,
+        content     TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        UNIQUE (document_id, seq)
+      );
+      CREATE INDEX knowledge_chunks_workspace_idx ON knowledge_chunks(workspace_id);
+    `,
+  },
+];
 type MigrateDb = {
   exec(sql: string): void;
   prepare(sql: string): { all(...p: unknown[]): unknown[]; run(...p: unknown[]): unknown };

@@ -14,6 +14,7 @@ export const FUNNEL_STEPS: { step: OnboardingStep; name: string }[] = [
   { step: 'company_profile', name: 'Company Profile' },
   { step: 'pick_goals', name: 'Pick Goals' },
   { step: 'hire_agents', name: 'Hire Agents' },
+  { step: 'add_knowledge', name: 'Add Knowledge' },
   { step: 'connect_tools', name: 'Connect Tools' },
   { step: 'first_run', name: 'First Run' },
 ];
@@ -87,6 +88,7 @@ export function workspaceFunnel(
   const goalsSaved = events.find((e) => e.kind === 'onboarding.goals_saved');
   const agentsHired = events.find((e) => e.kind === 'onboarding.agents_hired' || e.kind === 'agent.hired');
   const toolsSubmitted = events.find((e) => e.kind === 'onboarding.tools_submitted' || e.kind === 'connection.added');
+  const knowledgeSubmitted = events.find((e) => e.kind === 'onboarding.knowledge_submitted' || e.kind === 'knowledge.uploaded');
   const completedEvent = events.find((e) => e.kind === 'onboarding.completed');
   const explicitAbandons = events.filter((e) => e.kind === 'onboarding.step_abandoned');
 
@@ -118,6 +120,13 @@ export function workspaceFunnel(
         enteredAt = goalsSaved?.createdAt ?? (entered ? (profileSaved?.createdAt ?? workspace.createdAt) : null);
         completed = currentIdx > stepIndex('hire_agents') || !!agentsHired;
         completedAt = agentsHired?.createdAt ?? (completed ? (toolsSubmitted?.createdAt ?? workspace.updatedAt) : null);
+        break;
+      }
+      case 'add_knowledge': {
+        entered = currentIdx >= stepIndex('add_knowledge') || !!agentsHired;
+        enteredAt = agentsHired?.createdAt ?? (entered ? (goalsSaved?.createdAt ?? workspace.createdAt) : null);
+        completed = currentIdx > stepIndex('add_knowledge') || !!knowledgeSubmitted;
+        completedAt = knowledgeSubmitted?.createdAt ?? (completed ? (toolsSubmitted?.createdAt ?? workspace.updatedAt) : null);
         break;
       }
       case 'connect_tools': {

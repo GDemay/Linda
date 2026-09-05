@@ -22,6 +22,8 @@ import {
   upsertCompanyProfile,
 } from '../repos/accounts.ts';
 import { createWorkflow, listWorkflows, recordActivity } from '../repos/workflows.ts';
+import { listDocuments } from '../repos/knowledge.ts';
+import { uploadDocument } from '../knowledge/index.ts';
 import { definitionsForAgent, getWorkflowDefinition } from '../workflows/definitions.ts';
 import { runNow } from '../workflows/runner.ts';
 import { AppError, type OnboardingStep, type Workspace } from '../repos/types.ts';
@@ -40,6 +42,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   'company_profile',
   'pick_goals',
   'hire_agents',
+  'add_knowledge',
   'connect_tools',
   'first_run',
   'done',
@@ -333,9 +336,70 @@ export function hireAgents(
       data: { agents: hired.map((h) => h.key) },
     });
 
-    advance(db, ws, 'connect_tools');
+    advance(db, ws, 'add_knowledge');
     return { hired, nextStep: requireWorkspace(db, workspaceId).onboardingStep };
   });
+}
+
+// ------------------------------------------------- step 4: add knowledge
+
+export const knowledgeStepSchema = z.object({
+  documents: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(200).optional(),
+        /** Pasted text or file contents. */
+        content: z.string().max(200_000).optional(),
+        url: z.string().trim().url().max(2000).optional(),
+        filename: z.string().trim().max(255).optional(),
+        /** Catalog keys this document grounds. Empty = whole workspace. */
+        agentKeys: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
+      }),
+    )
+    .max(20)
+    .default([]),
+  /** Explicit opt-out — the affordance the spec demands ("add later"). */
+  skip: z.boolean().default(false),
+});
+
+/**
+ * Wizard step 4 (LIN-54): optional knowledge upload. Adding nothing and
+ * continuing is a first-class path, not an error — the workspace is fully
+ * usable on the company profile alone, and docs can be added from the
+ * dashboard at any time.
+ */
+export async function submitKnowledge(
+  db: Db,
+  workspaceId: string,
+  raw: unknown,
+  opts: { fetchImpl?: typeof fetch; now?: () => Date } = {},
+): Promise<{ added: { id: string; title: string; status: string; error: string | null }[]; nextStep: OnboardingStep }> {
+  const ws = requireWorkspace(db, workspaceId);
+  const parsed = knowledgeStepSchema.safeParse(raw);
+  if (!parsed.success) throw new AppError('invalid', 'invalid knowledge upload', parsed.error.issues);
+
+  const added: { id: string; title: string; status: string; error: string | null }[] = [];
+  for (const doc of parsed.data.documents) {
+    // Each document ingests independently — one bad URL must not take the
+    // whole batch down. uploadDocument records fetch failures on the row.
+    const { document } = await uploadDocument(db, workspaceId, doc, { fetchImpl: opts.fetchImpl, now: opts.now });
+    added.push({ id: document.id, title: document.title, status: document.status, error: document.error });
+  }
+
+  transaction(db, () => {
+    recordActivity(db, {
+      workspaceId,
+      actorType: 'user',
+      kind: 'onboarding.knowledge_submitted',
+      summary:
+        added.length > 0
+          ? `Added ${added.length} knowledge document(s)`
+          : 'Skipped knowledge upload',
+      data: { documents: added.map((a) => a.title), skip: parsed.data.skip },
+    });
+    advance(db, ws, 'connect_tools');
+  });
+  return { added, nextStep: requireWorkspace(db, workspaceId).onboardingStep };
 }
 
 // --------------------------------------------------- step 4: connect tools
@@ -514,6 +578,8 @@ export type OnboardingStatus = {
   profile: ReturnType<typeof findCompanyProfile>;
   agents: { key: string; name: string; status: string }[];
   providers: ReturnType<typeof requiredProvidersFor>;
+  /** Knowledge documents (LIN-54). Processing status surface is deliberately thin: count + last used. */
+  knowledge: { id: string; title: string; status: string; chunkCount: number; lastUsedAt: string | null }[];
   workflowCount: number;
 };
 
@@ -531,6 +597,13 @@ export function getOnboardingStatus(db: Db, workspaceId: string): OnboardingStat
     profile: findCompanyProfile(db, workspaceId),
     agents: agents.map((a) => ({ key: a.agentKey, name: a.displayName, status: a.status })),
     providers: requiredProvidersFor(db, workspaceId),
+    knowledge: listDocuments(db, workspaceId).map((d) => ({
+      id: d.id,
+      title: d.title,
+      status: d.status,
+      chunkCount: d.chunkCount,
+      lastUsedAt: d.lastUsedAt,
+    })),
     workflowCount: listWorkflows(db, workspaceId).length,
   };
 }

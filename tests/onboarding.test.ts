@@ -10,6 +10,7 @@ import {
   submitCompanyProfile,
   submitConnections,
   submitGoals,
+  submitKnowledge,
 } from '../src/lib/onboarding/machine.ts';
 import { listWorkspaceAgents, findCompanyProfile } from '../src/lib/repos/accounts.ts';
 import { listActivity, listRuns, listWorkflows } from '../src/lib/repos/workflows.ts';
@@ -61,6 +62,8 @@ describe('onboarding — no human in the loop', () => {
     seen.push(getOnboardingStatus(d, workspace.id).step);
     hireAgents(d, workspace.id, { agents: [{ key: 'phone', config: {} }] });
     seen.push(getOnboardingStatus(d, workspace.id).step);
+    await submitKnowledge(d, workspace.id, { documents: [], skip: true });
+    seen.push(getOnboardingStatus(d, workspace.id).step);
     submitConnections(d, workspace.id, { connections: [{ provider: 'calendar' }] });
     seen.push(getOnboardingStatus(d, workspace.id).step);
     await completeOnboarding(d, workspace.id);
@@ -74,9 +77,10 @@ describe('onboarding — no human in the loop', () => {
     const { workspace } = await newAccount(d);
     expect(getOnboardingStatus(d, workspace.id).progress).toBe(0);
     submitCompanyProfile(d, workspace.id, PROFILE);
-    expect(getOnboardingStatus(d, workspace.id).progress).toBe(20);
+    // 6 user steps + terminal 'done': progress is idx/6, rounded.
+    expect(getOnboardingStatus(d, workspace.id).progress).toBe(17);
     submitGoals(d, workspace.id, { goals: ['capture_leads'] });
-    expect(getOnboardingStatus(d, workspace.id).progress).toBe(40);
+    expect(getOnboardingStatus(d, workspace.id).progress).toBe(33);
   });
 });
 

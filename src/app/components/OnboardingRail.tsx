@@ -6,6 +6,7 @@ const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: 'company_profile', label: 'Your business' },
   { key: 'pick_goals', label: 'What you want done' },
   { key: 'hire_agents', label: 'Pick your agents' },
+  { key: 'add_knowledge', label: 'Add knowledge (optional)' },
   { key: 'connect_tools', label: 'Connect your tools' },
   { key: 'first_run', label: 'First task' },
 ];

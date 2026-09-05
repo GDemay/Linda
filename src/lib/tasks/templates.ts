@@ -15,6 +15,12 @@ export type TemplateContext = {
   persona: string;
   /** The raw user instruction. */
   input: string;
+  /**
+   * Knowledge-base grounding blocks (LIN-54), pre-scoped to the agent and
+   * pre-capped. Templates treat it as optional context: absent knowledge
+   * must not change a template's output shape, only its specificity.
+   */
+  knowledge?: string[];
 };
 
 export type TaskTemplate = {
@@ -34,6 +40,16 @@ const firstSentence = (s: string) => {
 
 const bullets = (items: string[]) => items.map((i) => `• ${i}`).join('\n');
 
+/**
+ * Appended to template output when knowledge grounding contributed context
+ * (LIN-54). Absent knowledge changes nothing — the note only appears when
+ * there was something to ground on.
+ */
+const groundingNote = (knowledge?: string[]) =>
+  knowledge && knowledge.length > 0
+    ? `\n\nGrounded in ${knowledge.length} passage${knowledge.length === 1 ? '' : 's'} from your uploaded knowledge.`
+    : '';
+
 export const TASK_TEMPLATES: Record<AgentKey, TaskTemplate[]> = {
   phone: [
     {
@@ -41,7 +57,7 @@ export const TASK_TEMPLATES: Record<AgentKey, TaskTemplate[]> = {
       category: 'Phone & inbox',
       title: 'Draft a reply to an inbound enquiry',
       tokens: 180,
-      render: ({ input }) =>
+      render: ({ input, knowledge }) =>
         `Reply drafted for the inbound enquiry:\n\n"${firstSentence(input)}"\n\n` +
         bullets([
           'Acknowledged the enquiry and thanked the sender',
@@ -49,7 +65,8 @@ export const TASK_TEMPLATES: Record<AgentKey, TaskTemplate[]> = {
           'Proposed two concrete slots to talk further',
           'No commitment asked for before the call',
         ]) +
-        `\n\nNext: send via the connected channel once you approve.`,
+        `\n\nNext: send via the connected channel once you approve.` +
+        groundingNote(knowledge),
     },
     {
       key: 'call_summary',

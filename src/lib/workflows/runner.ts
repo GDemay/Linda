@@ -1,6 +1,7 @@
 import type { Db } from '../db/index.ts';
 import { recordUsage, WORKFLOW_RUN_TOKENS_PER_STEP, assertWithinCap } from '../billing/metering.ts';
 import { connectedProviders, findWorkspaceAgent } from '../repos/accounts.ts';
+import { groundingForAgent } from '../knowledge/index.ts';
 import { createApprovalItem } from '../repos/approvals.ts';
 import {
   claimNextRun,
@@ -106,6 +107,12 @@ export async function executeRun(db: Db, run: WorkflowRun, opts: RunnerOptions =
     workflowId: workflow.id,
     runId: run.id,
     agentConfig: agent?.config ?? {},
+    // Knowledge grounding (LIN-54): injected once per run alongside agent
+    // config, scoped to this agent's visible documents. Retrieval stamps
+    // last_used_at so the "last used" surface stays truthful.
+    knowledge: agent
+      ? groundingForAgent(db, run.workspaceId, agent.agentKey, { now }).blocks
+      : groundingForAgent(db, run.workspaceId, null, { now }).blocks,
     connectedProviders: providers,
     steps: {},
     now,

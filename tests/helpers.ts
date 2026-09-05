@@ -5,6 +5,7 @@ import {
   submitCompanyProfile,
   submitConnections,
   submitGoals,
+  submitKnowledge,
   completeOnboarding,
 } from '../src/lib/onboarding/machine.ts';
 
@@ -34,7 +35,13 @@ export async function newAccount(d: Db, over: Partial<{ email: string; password:
 export async function onboard(
   d: Db,
   workspaceId: string,
-  opts: { goals?: string[]; agents?: string[]; connect?: string[]; now?: () => Date } = {},
+  opts: {
+    goals?: string[];
+    agents?: string[];
+    connect?: string[];
+    knowledge?: { title?: string; content: string; agentKeys?: string[] }[];
+    now?: () => Date;
+  } = {},
 ) {
   submitCompanyProfile(d, workspaceId, {
     legalName: 'Acme SAS',
@@ -48,6 +55,12 @@ export async function onboard(
   submitGoals(d, workspaceId, { goals: opts.goals ?? ['capture_leads', 'grow_audience'] });
   hireAgents(d, workspaceId, {
     agents: (opts.agents ?? ['assistant', 'phone', 'marketing']).map((key) => ({ key, config: {} })),
+  });
+  // The knowledge step is optional; the helper's default is the skip path,
+  // same as a customer who clicks "I'll add this later".
+  await submitKnowledge(d, workspaceId, {
+    documents: opts.knowledge ?? [],
+    skip: (opts.knowledge ?? []).length === 0,
   });
   submitConnections(d, workspaceId, {
     connections: (opts.connect ?? ['calendar']).map((provider) => ({ provider })),

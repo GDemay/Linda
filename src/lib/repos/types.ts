@@ -23,6 +23,7 @@ export type OnboardingStep =
   | 'company_profile'
   | 'pick_goals'
   | 'hire_agents'
+  | 'add_knowledge'
   | 'connect_tools'
   | 'first_run'
   | 'done';
@@ -200,6 +201,45 @@ export type Invoice = {
 };
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+// -------------------------------------------------------------- knowledge
+
+export type KnowledgeSource = 'paste' | 'url' | 'file';
+
+export type KnowledgeStatus = 'processing' | 'ready' | 'failed';
+
+/**
+ * One customer-uploaded document (LIN-54 / LIN-2 W8). Chunks are derived
+ * data: they exist only to be retrieved for grounding and cascade away with
+ * the document — deleting a document removes everything derived from it (GTM
+ * reversibility promise, LIN-14).
+ */
+export type KnowledgeDocument = {
+  id: string;
+  workspaceId: string;
+  source: KnowledgeSource;
+  /** The URL for fetched docs, the filename for uploads, empty for pastes. */
+  sourceRef: string;
+  title: string;
+  status: KnowledgeStatus;
+  error: string | null;
+  /** Agent keys this doc is scoped to; empty means visible to the whole workspace. */
+  agentKeys: string[];
+  chunkCount: number;
+  charCount: number;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+/** Derived text extracted from a document, in reading order. Grounding retrieves these. */
+export type KnowledgeChunk = {
+  id: string;
+  documentId: string;
+  workspaceId: string;
+  seq: number;
+  content: string;
+  createdAt: string;
+};
 
 /** One item in the workspace-level approval inbox (W6). */
 export type ApprovalItem = {

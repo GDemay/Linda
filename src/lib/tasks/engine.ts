@@ -4,6 +4,7 @@ import { assertWithinCap, recordUsage } from '../billing/metering.ts';
 import { getAgent, isAgentKey } from '../agents/catalog.ts';
 import { findWorkspace } from '../repos/accounts.ts';
 import { recordActivity } from '../repos/workflows.ts';
+import { groundingForAgent } from '../knowledge/index.ts';
 import { createTask, countTasks, findTaskById, listTasks } from '../repos/tasks.ts';
 import { recordEvent } from '../analytics/events.ts';
 import { AppError, type Task, type TaskStatus } from '../repos/types.ts';
@@ -55,7 +56,10 @@ export function runTask(db: Db, raw: unknown): Task {
     throw new AppError('invalid', `agent ${agent} has no template '${parsed.data.template}'`);
   }
 
-  const output = template.render({ persona: def.persona, input: parsed.data.input });
+  // Knowledge grounding (LIN-54): same context injection the workflow runner
+  // gets, scoped to the agent running the task. Stamps last_used_at.
+  const grounding = groundingForAgent(db, workspaceId, agent);
+  const output = template.render({ persona: def.persona, input: parsed.data.input, knowledge: grounding.blocks });
 
   // The first-value moment in the activation funnel (LIN-67 / audit fix #6).
   const isFirstTask = countTasks(db, workspaceId) === 0;
