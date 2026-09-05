@@ -1,4 +1,5 @@
 import type { Db } from '../db/index.ts';
+import { recordUsage, WORKFLOW_RUN_TOKENS_PER_STEP, assertWithinCap } from '../billing/metering.ts';
 import { connectedProviders, findWorkspaceAgent } from '../repos/accounts.ts';
 import { createApprovalItem } from '../repos/approvals.ts';
 import {
@@ -54,6 +55,32 @@ export async function executeRun(db: Db, run: WorkflowRun, opts: RunnerOptions =
 
   const definition = getWorkflowDefinition(workflow.definitionKey);
   const agent = findWorkspaceAgent(db, run.workspaceId, workflow.workspaceAgentId);
+
+  // Billing gates (LIN-52 W10): every run asks the entitlements service and
+  // the spend cap first, and a paused agent stops the run with its visible
+  // pause reason instead of executing silently past the cap.
+  let blockReason: string | null = null;
+  try {
+    assertWithinCap(db, run.workspaceId, now());
+  } catch (err) {
+    blockReason = err instanceof Error ? err.message : String(err);
+  }
+  if (!blockReason && agent?.status === 'paused') {
+    const summary = (agent.config.pausedSummary as string | undefined) ?? 'agent is paused';
+    blockReason = summary;
+  }
+  if (blockReason) {
+    completeRun(db, run.id, { status: 'failed', error: blockReason });
+    recordActivity(db, {
+      workspaceId: run.workspaceId,
+      actorType: 'system',
+      kind: 'run.blocked',
+      summary: `${workflow.name} blocked: ${blockReason}`,
+      data: { runId: run.id, workflowId: workflow.id },
+    });
+    return { runId: run.id, status: 'failed', steps: [], error: blockReason };
+  }
+
   const providers = connectedProviders(db, run.workspaceId);
 
   // Workflow-level input defaults are overridden by whatever the trigger passed.
@@ -163,6 +190,16 @@ export async function executeRun(db: Db, run: WorkflowRun, opts: RunnerOptions =
     summary: `${workflow.name} completed`,
     data: { runId: run.id, steps: stepStatuses },
   });
+  // Metered after success: estimated tokens per executed step land in the
+  // append-only ledger, then the spend cap enforces its 80/100 behavior.
+  recordUsage(db, {
+    workspaceId: run.workspaceId,
+    agent: workflow.workspaceAgentId,
+    source: 'workflow_run',
+    sourceId: run.id,
+    tokens: Math.max(1, stepStatuses.filter((s) => s.status !== 'skipped').length) * WORKFLOW_RUN_TOKENS_PER_STEP,
+    reason: workflow.name,
+  }, now());
   return { runId: run.id, status: 'succeeded', steps: stepStatuses };
 }
 

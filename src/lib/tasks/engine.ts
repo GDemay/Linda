@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Db } from '../db/index.ts';
+import { assertWithinCap, recordUsage } from '../billing/metering.ts';
 import { getAgent, isAgentKey } from '../agents/catalog.ts';
 import { findWorkspace } from '../repos/accounts.ts';
 import { recordActivity } from '../repos/workflows.ts';
@@ -33,6 +34,10 @@ export function runTask(db: Db, raw: unknown): Task {
 
   const workspace = findWorkspace(db, workspaceId);
   if (!workspace) throw new AppError('not_found', `workspace ${workspaceId} not found`);
+
+  // Every metered action asks the entitlements service first (LIN-52 W10):
+  // plan gating + hard spend cap, so nothing runs past the cap silently.
+  assertWithinCap(db, workspaceId);
 
   if (!isAgentKey(agent)) {
     throw new AppError('invalid', `unknown agent: ${agent}`);
@@ -68,6 +73,17 @@ export function runTask(db: Db, raw: unknown): Task {
     kind: 'task.completed',
     summary: `${def.persona} completed: ${task.title}`,
     data: { taskId: task.id, agent, template: template.key, tokensUsed: template.tokens },
+  });
+
+  // Metered after completion: the append-only ledger row, then cap enforcement
+  // (80% notifies, 100% pauses agents) so the crossing action is the last one.
+  recordUsage(db, {
+    workspaceId,
+    agent,
+    source: 'task',
+    sourceId: task.id,
+    tokens: task.tokensUsed,
+    reason: template.key,
   });
 
   return task;

@@ -136,6 +136,69 @@ export type ActivityEvent = {
 /** What kind of gated effect an action has on the outside world. Drives approval copy, not per-tool rules. */
 export type ActionKind = 'send' | 'post' | 'spend' | 'delete' | 'other';
 
+// ----------------------------------------------------------------- billing
+
+/** The defined plan vocabulary for workspaces.plan (LIN-52). */
+export type PlanKey = 'trial' | 'free' | 'starter' | 'team' | 'scale';
+
+export type SubscriptionStatus = 'trialing' | 'active' | 'canceled';
+
+export type Subscription = {
+  workspaceId: string;
+  plan: PlanKey;
+  status: SubscriptionStatus;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** One append-only usage entry. Every meter is derived from these rows. */
+export type UsageEntry = {
+  id: string;
+  workspaceId: string;
+  agent: string;
+  source: 'task' | 'workflow_run' | 'seed' | 'grant';
+  sourceId: string | null;
+  credits: number;
+  tokens: number;
+  reason: string;
+  occurredAt: string;
+};
+
+/** A user-set hard monthly credit limit. Defaults to the plan's monthlyCredits. */
+export type SpendCap = {
+  workspaceId: string;
+  monthlyLimitCredits: number;
+  updatedAt: string;
+};
+
+export type InvoiceStatus = 'open' | 'paid' | 'void';
+
+export type InvoiceLineItem = {
+  id: string;
+  kind: 'subscription' | 'overage';
+  description: string;
+  quantity: number;
+  unitUsd: number;
+  amountUsd: number;
+};
+
+export type Invoice = {
+  id: string;
+  workspaceId: string;
+  number: string;
+  status: InvoiceStatus;
+  periodStart: string;
+  periodEnd: string;
+  currency: string;
+  subtotalUsd: number;
+  totalUsd: number;
+  issuedAt: string;
+  paidAt: string | null;
+  lineItems: InvoiceLineItem[];
+};
+
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 /** One item in the workspace-level approval inbox (W6). */
@@ -160,6 +223,7 @@ export type ErrorCode =
   | 'not_found'
   | 'conflict'
   | 'invalid'
+  | 'payment_required'
   | 'rate_limited';
 
 /**
@@ -187,6 +251,7 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   not_found: 404,
   conflict: 409,
   invalid: 422,
+  payment_required: 402,
   rate_limited: 429,
 };
 

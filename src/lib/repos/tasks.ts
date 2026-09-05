@@ -190,3 +190,14 @@ export function updateTask(
 
   return findTaskGlobal(db, taskId)!;
 }
+
+/** Pre-billing history for the usage-ledger seed (LIN-52): exact token counts. */
+export function listTasksWithTokens(
+  db: Db,
+  workspaceId: string,
+): { id: string; agent: string; tokensUsed: number; createdAt: string }[] {
+  const rows = db
+    .prepare('SELECT id, agent, tokens_used, created_at FROM tasks WHERE workspace_id = ? AND tokens_used > 0')
+    .all(workspaceId) as { id: string; agent: string; tokens_used: number; created_at: string }[];
+  return rows.map((r) => ({ id: r.id, agent: r.agent, tokensUsed: Number(r.tokens_used), createdAt: r.created_at }));
+}

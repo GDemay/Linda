@@ -1,4 +1,5 @@
 import type { Db } from '../db/index.ts';
+import { isTrialPlan } from '../billing/entitlements.ts';
 import { countTasks, listTasks } from '../repos/tasks.ts';
 
 /**
@@ -87,7 +88,7 @@ export function listLeads(db: Db): Lead[] {
       name: r.name,
       company: (r.legal_name || r.workspace_name || '').trim(),
       plan: r.plan || 'trial',
-      status: r.workspace_id ? (r.plan === 'trial' ? 'active_trial' : 'active') : 'active_trial',
+      status: r.workspace_id ? (isTrialPlan(r.plan ?? 'trial') ? 'active_trial' : 'active') : 'active_trial',
       audience: leadAudience(key),
       createdAt: r.user_created_at,
       workspaceId: r.workspace_id,

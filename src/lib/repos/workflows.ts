@@ -323,3 +323,24 @@ export function listActivity(db: Db, workspaceId: string, limit = 50): ActivityE
     createdAt: r.created_at,
   }));
 }
+
+/** Pre-billing history for the usage-ledger seed (LIN-52): one estimate per finished run. */
+export function listSucceededRunUsage(
+  db: Db,
+  workspaceId: string,
+): { runId: string; workspaceAgentId: string; stepCount: number; createdAt: string }[] {
+  const rows = db
+    .prepare(
+      `SELECT r.id AS run_id, r.created_at, w.workspace_agent_id,
+              (SELECT COUNT(*) FROM workflow_run_steps s WHERE s.run_id = r.id) AS step_count
+       FROM workflow_runs r JOIN workflows w ON w.id = r.workflow_id
+       WHERE r.workspace_id = ? AND r.status = 'succeeded'`,
+    )
+    .all(workspaceId) as Row[];
+  return rows.map((r) => ({
+    runId: r.run_id,
+    workspaceAgentId: r.workspace_agent_id,
+    stepCount: Number(r.step_count),
+    createdAt: r.created_at,
+  }));
+}
