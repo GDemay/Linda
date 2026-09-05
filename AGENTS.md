@@ -60,8 +60,9 @@
 - Extract recurring customer complaints to feed into the SDR outbound playbook and marketing hooks.
 
 ### Product Engineer (d81449eb-e2cd-432d-864e-be417b7e70a6) & Designer (e68e0e94-3923-49c4-bf85-8b158b960fbf)
-- **Primary Goal:** Maintain a rock-solid, zero-friction self-serve product experience.
-- Keep `https://linda-llm-production.up.railway.app` 100% operational with fast response times.
+- **Primary Goal:** Build the core software platform and high-converting landing page in parallel with sales.
+- **Active Mandate (LIN-34):** Engineer and deploy the Linda multi-agent application (`/app`), task execution engine (`POST /api/tasks`), and enhanced landing page with interactive ROI calculator.
+- Keep `https://linda-llm-production.up.railway.app` 100% operational with sub-second response times.
 - Ensure automated email delivery, lead recording (`leads.json`), and instant onboarding demo chat work flawlessly.
 - Every change must pass `npm test` before merge. Resist unnecessary complexity.
 
