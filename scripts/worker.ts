@@ -8,6 +8,7 @@
  *   node --experimental-strip-types scripts/worker.ts
  */
 import { getDb } from '../src/lib/db/index.ts';
+import { expireDueTrials } from '../src/lib/billing/entitlements.ts';
 import { purgeExpiredSessions } from '../src/lib/repos/accounts.ts';
 import { drainQueue } from '../src/lib/workflows/runner.ts';
 
@@ -29,6 +30,10 @@ async function main() {
   let ticks = 0;
   while (!stopping) {
     try {
+      // AC9: expired trials downgrade to free automatically, no human action.
+      const expired = expireDueTrials(db);
+      if (expired.length) console.log(`[worker] expired ${expired.length} trial(s)`);
+
       const outcomes = await drainQueue(db, BATCH);
       if (outcomes.length) {
         const tally = outcomes.reduce<Record<string, number>>((acc, o) => {

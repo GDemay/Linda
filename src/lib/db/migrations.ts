@@ -235,6 +235,73 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX analytics_events_name_idx ON analytics_events(name, created_at DESC);
     `,
   },
+  {
+    // From the master lineage (LIN-52); renumbered 4 -> 5 during the LIN-73
+    // merge because both lineages added a migration with id 4. Prod (main)
+    // DBs already have 4 = magic_links_and_events and apply this as 5.
+    id: 5,
+    name: 'billing',
+    up: `
+      -- Append-only usage ledger (LIN-52 W10/W11). Every meter — monthly
+      -- spend, overage, cap ratios — is derived from these rows; there is no
+      -- mutable counter anywhere.
+      CREATE TABLE usage_ledger (
+        id           TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        agent        TEXT NOT NULL,
+        source       TEXT NOT NULL CHECK (source IN ('task','workflow_run','seed','grant')),
+        source_id    TEXT,
+        credits      REAL NOT NULL,
+        tokens       INTEGER NOT NULL DEFAULT 0,
+        reason       TEXT NOT NULL,
+        occurred_at  TEXT NOT NULL
+      );
+      CREATE INDEX usage_ledger_workspace_idx ON usage_ledger(workspace_id, occurred_at DESC);
+      CREATE INDEX usage_ledger_source_idx ON usage_ledger(source, source_id);
+
+      CREATE TABLE subscriptions (
+        workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
+        plan         TEXT NOT NULL CHECK (plan IN ('trial','free','starter','team','scale')),
+        status       TEXT NOT NULL DEFAULT 'trialing' CHECK (status IN ('trialing','active','canceled')),
+        current_period_start TEXT NOT NULL,
+        current_period_end   TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      -- The hard spend cap (W10). 80% notifies, 100% pauses every agent.
+      CREATE TABLE spend_caps (
+        workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
+        monthly_limit_credits REAL NOT NULL CHECK (monthly_limit_credits >= 0),
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE invoices (
+        id           TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        number       TEXT NOT NULL UNIQUE,
+        status       TEXT NOT NULL DEFAULT 'paid' CHECK (status IN ('open','paid','void')),
+        period_start TEXT NOT NULL,
+        period_end   TEXT NOT NULL,
+        currency     TEXT NOT NULL DEFAULT 'usd',
+        subtotal_usd REAL NOT NULL DEFAULT 0,
+        total_usd    REAL NOT NULL DEFAULT 0,
+        issued_at    TEXT NOT NULL,
+        paid_at      TEXT
+      );
+      CREATE INDEX invoices_workspace_idx ON invoices(workspace_id, issued_at DESC);
+
+      CREATE TABLE invoice_line_items (
+        id          TEXT PRIMARY KEY,
+        invoice_id  TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+        kind        TEXT NOT NULL CHECK (kind IN ('subscription','overage')),
+        description TEXT NOT NULL,
+        quantity    REAL NOT NULL,
+        unit_usd    REAL NOT NULL,
+        amount_usd  REAL NOT NULL
+      );
+    `,
+  },
 ];
 
 type MigrateDb = {

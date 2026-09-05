@@ -46,3 +46,13 @@ export const PRICING_COMMON = {
   allAgentsIncluded: true,
   allIntegrationsIncluded: true,
 };
+
+/**
+ * The credit conversion (LIN-52), published on the trust page before anyone
+ * is billed a credit: 1 credit ~= 1k tokens. Overage beyond a plan's included
+ * credits is charged per credit, capped by the workspace's hard spend cap.
+ */
+export const CREDIT_CONVERSION = {
+  tokensPerCredit: 1_000,
+  overageUsdPerCredit: 0.005,
+};

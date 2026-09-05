@@ -188,6 +188,18 @@ export function findWorkspace(db: Db, workspaceId: string): Workspace | null {
   return r ? toWorkspace(r) : null;
 }
 
+export function listWorkspacesByPlan(db: Db, plan: string): Workspace[] {
+  return (db.prepare('SELECT * FROM workspaces WHERE plan = ?').all(plan) as Row[]).map(toWorkspace);
+}
+
+/**
+ * Plan transitions go through the billing domain (LIN-52); this is the only
+ * write. The plan vocabulary itself is owned by lib/billing/entitlements.
+ */
+export function setWorkspacePlan(db: Db, workspaceId: string, plan: string): void {
+  db.prepare('UPDATE workspaces SET plan = ?, updated_at = ? WHERE id = ?').run(plan, nowIso(), workspaceId);
+}
+
 export function setOnboardingStep(db: Db, workspaceId: string, step: OnboardingStep): void {
   const done = step === 'done' ? nowIso() : null;
   db.prepare(
