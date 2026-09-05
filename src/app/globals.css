@@ -357,3 +357,26 @@ button.danger:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* Design kit frame and logo mark from design/index.html */
+.logo-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-accent, #3d3bd6);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.03em;
+  flex: none;
+}
+
+.kit-frame {
+  border: 1px solid var(--border-subtle, #e3e3ea);
+  border-radius: var(--radius-xl, 16px);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg, 0 10px 25px -5px rgba(0,0,0,0.1));
+  background: var(--bg-surface, #ffffff);
+}
+
