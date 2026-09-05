@@ -19,6 +19,8 @@ export type AgentKey =
 export type AgentDefinition = {
   key: AgentKey;
   name: string;
+  /** The persona customers see in the dashboard, e.g. "Tom" for the phone agent. */
+  persona: string;
   role: string;
   blurb: string;
   /** Providers the agent needs before it can run. Onboarding asks for these. */
@@ -45,6 +47,7 @@ const baseConfig = {
 export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   phone: {
     key: 'phone',
+    persona: 'Tom',
     name: 'Phone',
     role: 'Phone & inbox agent',
     blurb: 'Answers calls, WhatsApp and web enquiries around the clock, and books meetings straight into your calendar.',
@@ -61,6 +64,7 @@ export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   },
   marketing: {
     key: 'marketing',
+    persona: 'John',
     name: 'Marketing',
     role: 'Marketing agent',
     blurb: 'Plans, writes and schedules social content across your channels, with visuals to match.',
@@ -77,6 +81,7 @@ export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   },
   seo: {
     key: 'seo',
+    persona: 'Lou',
     name: 'SEO',
     role: 'SEO agent',
     blurb: 'Audits your site, finds the keywords worth winning, and drafts articles that rank.',
@@ -93,6 +98,7 @@ export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   },
   sales: {
     key: 'sales',
+    persona: 'Elio',
     name: 'Sales',
     role: 'Sales agent',
     blurb: 'Builds prospect lists, runs outreach sequences, and keeps your CRM honest.',
@@ -109,6 +115,7 @@ export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   },
   accounting: {
     key: 'accounting',
+    persona: 'Manue',
     name: 'Finance',
     role: 'Finance agent',
     blurb: 'Keeps a rolling cash forecast and flags anything that needs your attention.',
@@ -125,6 +132,7 @@ export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   },
   legal: {
     key: 'legal',
+    persona: 'Julia',
     name: 'Legal',
     role: 'Legal agent',
     blurb: 'Drafts and reviews everyday contracts, and flags clauses worth a second look.',
@@ -142,6 +150,7 @@ export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   },
   recruiting: {
     key: 'recruiting',
+    persona: 'Rony',
     name: 'Recruiting',
     role: 'Recruiting agent',
     blurb: 'Screens applicants against your bar, and schedules the ones worth meeting.',
@@ -157,6 +166,7 @@ export const AGENT_CATALOG: Record<AgentKey, AgentDefinition> = {
   },
   assistant: {
     key: 'assistant',
+    persona: 'Charly',
     name: 'Chief of Staff',
     role: 'Chief of staff',
     blurb: 'Your single point of contact — routes work to the right agent and reports back.',

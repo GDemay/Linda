@@ -187,6 +187,28 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX approval_items_workspace_idx ON approval_items(workspace_id, status, created_at DESC);
     `,
   },
+  {
+    id: 3,
+    name: 'tasks',
+    up: `
+      CREATE TABLE tasks (
+        id            TEXT PRIMARY KEY,
+        workspace_id  TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        agent         TEXT NOT NULL,
+        category      TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        input         TEXT NOT NULL,
+        output        TEXT,
+        status        TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+        tokens_used   INTEGER NOT NULL DEFAULT 0,
+        created_at    TEXT NOT NULL,
+        completed_at  TEXT,
+        error         TEXT
+      );
+      CREATE INDEX tasks_workspace_idx ON tasks(workspace_id, created_at DESC);
+      CREATE INDEX tasks_agent_idx ON tasks(agent);
+    `,
+  },
 ];
 
 type MigrateDb = {
