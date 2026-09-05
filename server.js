@@ -110,6 +110,10 @@ app.get('/admin', requireAdmin, (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Linda test service listening on port ${PORT}, model=${OPENAI_MODEL}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Linda test service listening on port ${PORT}, model=${OPENAI_MODEL}`);
+  });
+}
+
+module.exports = app;
