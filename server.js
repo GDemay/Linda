@@ -6,6 +6,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || 'minimal';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
 // Cheapest-tier pricing per 1M tokens (USD). Update if the model changes.
@@ -42,7 +43,7 @@ function recordUsage({ ok, promptTokens = 0, completionTokens = 0, error = null 
 }
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', model: OPENAI_MODEL, hasApiKey: Boolean(OPENAI_API_KEY) });
+  res.json({ status: 'ok', model: OPENAI_MODEL, reasoningEffort: REASONING_EFFORT, hasApiKey: Boolean(OPENAI_API_KEY) });
 });
 
 app.post('/api/chat', async (req, res) => {
@@ -65,6 +66,7 @@ app.post('/api/chat', async (req, res) => {
         model: OPENAI_MODEL,
         messages: [{ role: 'user', content: message }],
         max_completion_tokens: 300,
+        reasoning_effort: REASONING_EFFORT,
       }),
     });
 
@@ -102,6 +104,7 @@ function requireAdmin(req, res, next) {
 app.get('/admin', requireAdmin, (req, res) => {
   res.json({
     model: OPENAI_MODEL,
+    reasoningEffort: REASONING_EFFORT,
     hasApiKey: Boolean(OPENAI_API_KEY),
     usage,
   });
