@@ -1,0 +1,200 @@
+export type Role = 'owner' | 'admin' | 'member';
+
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  emailVerifiedAt: string | null;
+  createdAt: string;
+};
+
+export type Workspace = {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  onboardingStep: OnboardingStep;
+  onboardingDoneAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OnboardingStep =
+  | 'company_profile'
+  | 'pick_goals'
+  | 'hire_agents'
+  | 'connect_tools'
+  | 'first_run'
+  | 'done';
+
+export type Membership = { id: string; workspaceId: string; userId: string; role: Role };
+
+export type CompanyProfile = {
+  workspaceId: string;
+  legalName: string;
+  industry: string;
+  size: string;
+  website: string | null;
+  description: string;
+  tone: string;
+  timezone: string;
+  goals: string[];
+};
+
+export type WorkspaceAgent = {
+  id: string;
+  workspaceId: string;
+  agentKey: string;
+  displayName: string;
+  status: 'active' | 'paused';
+  config: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type Connection = {
+  id: string;
+  workspaceId: string;
+  provider: string;
+  status: 'connected' | 'error' | 'revoked';
+  /** A connection starts read-only; only the trust contract (onboarding done) unlocks write actions. */
+  accessLevel: 'read_only' | 'read_write';
+  externalAccount: string | null;
+  createdAt: string;
+};
+
+export type Workflow = {
+  id: string;
+  workspaceId: string;
+  workspaceAgentId: string;
+  definitionKey: string;
+  name: string;
+  status: 'active' | 'paused';
+  triggerKind: 'manual' | 'schedule' | 'event';
+  triggerConfig: Record<string, unknown>;
+  inputDefaults: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type RunStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+
+export type WorkflowRun = {
+  id: string;
+  workspaceId: string;
+  workflowId: string;
+  status: RunStatus;
+  trigger: string;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  error: string | null;
+  attempt: number;
+  runAfter: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+};
+
+export type RunStep = {
+  id: string;
+  runId: string;
+  seq: number;
+  stepKey: string;
+  status: 'running' | 'succeeded' | 'failed' | 'skipped';
+  output: unknown;
+  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+};
+
+export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export type Task = {
+  id: string;
+  workspaceId: string;
+  agent: string;
+  category: string;
+  title: string;
+  input: string;
+  output: string | null;
+  status: TaskStatus;
+  tokensUsed: number;
+  createdAt: string;
+  completedAt: string | null;
+  error: string | null;
+};
+
+export type ActivityEvent = {
+  id: string;
+  workspaceId: string;
+  actorType: 'user' | 'agent' | 'system';
+  actorId: string | null;
+  kind: string;
+  summary: string;
+  data: Record<string, unknown>;
+  createdAt: string;
+};
+
+/** What kind of gated effect an action has on the outside world. Drives approval copy, not per-tool rules. */
+export type ActionKind = 'send' | 'post' | 'spend' | 'delete' | 'other';
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+/** One item in the workspace-level approval inbox (W6). */
+export type ApprovalItem = {
+  id: string;
+  workspaceId: string;
+  workspaceAgentId: string;
+  workflowRunId: string | null;
+  workflowRunStepId: string | null;
+  actionKind: ActionKind;
+  summary: string;
+  payload: Record<string, unknown>;
+  status: ApprovalStatus;
+  decidedByUserId: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+};
+
+export type ErrorCode =
+  | 'unauthorized'
+  | 'forbidden'
+  | 'not_found'
+  | 'conflict'
+  | 'invalid'
+  | 'rate_limited';
+
+/**
+ * Thrown by the service layer; API routes map `code` onto an HTTP status.
+ *
+ * Fields are declared and assigned explicitly rather than via constructor
+ * parameter properties, which Node's --experimental-strip-types cannot erase
+ * (the seed and worker scripts run this code directly under node).
+ */
+export class AppError extends Error {
+  code: ErrorCode;
+  details?: unknown;
+
+  constructor(code: ErrorCode, message: string, details?: unknown) {
+    super(message);
+    this.name = 'AppError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export const ERROR_STATUS: Record<ErrorCode, number> = {
+  unauthorized: 401,
+  forbidden: 403,
+  not_found: 404,
+  conflict: 409,
+  invalid: 422,
+  rate_limited: 429,
+};
+
+export function parseJson<T>(raw: unknown, fallback: T): T {
+  if (typeof raw !== 'string') return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
