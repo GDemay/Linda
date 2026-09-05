@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AGENT_CATALOG } from '@/lib/agents/catalog.ts';
+import { CREDIT_CONVERSION } from '@/lib/pricing.ts';
 import AccountPanel from './AccountPanel.tsx';
 
 export const metadata = {
@@ -188,9 +189,47 @@ export default function TrustPage() {
           <h2>Credits &amp; usage</h2>
           <p className="muted" style={{ maxWidth: 680 }}>
             Linda prices in plain dollars, published on the <Link href="/pricing">pricing page</Link>.
-            When metered usage credits ship, the exact credit conversion (what one credit pays for,
-            what a typical run costs) will be published here in the same table format — before
+            Metered work is billed in credits, with the exact conversion published here — before
             anyone is billed a credit.
+          </p>
+          <div className="card stack" style={{ gap: 0, padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--surface-muted)' }}>
+                  <th style={{ padding: '10px 14px' }}>What</th>
+                  <th style={{ padding: '10px 14px' }}>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid var(--surface-muted)' }}>
+                  <td style={{ padding: '10px 14px', fontWeight: 600 }}>Credit conversion</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    1 credit ≈ {CREDIT_CONVERSION.tokensPerCredit.toLocaleString('en-US')} tokens
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid var(--surface-muted)' }}>
+                  <td style={{ padding: '10px 14px', fontWeight: 600 }}>A typical task</td>
+                  <td style={{ padding: '10px 14px' }}>120–220 tokens ≈ 0.12–0.22 credits</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid var(--surface-muted)' }}>
+                  <td style={{ padding: '10px 14px', fontWeight: 600 }}>Overage beyond your plan</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    ${CREDIT_CONVERSION.overageUsdPerCredit.toFixed(3)} per credit
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '10px 14px', fontWeight: 600 }}>Hard spend cap</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    You set it. At 80% we notify you; at 100% every agent pauses. Nothing runs past
+                    it silently — you will never get a surprise bill.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="muted" style={{ maxWidth: 680 }}>
+            Usage is tracked in an append-only ledger your workspace can audit, and every meter —
+            monthly spend, overage, cap progress — is derived from it.
           </p>
         </section>
 
