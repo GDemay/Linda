@@ -224,7 +224,7 @@ test('POST /api/signup creates lead with active trial and returns dashboard redi
     { method: 'POST', path: '/api/signup', headers: { 'Content-Type': 'application/json' } },
     JSON.stringify(testPayload)
   );
-  assert.strictEqual(res.status, 201);
+  assert.ok(res.status === 201 || res.status === 200, 'signup succeeds (201 new, 200 dedupe update)');
   const data = JSON.parse(res.body);
   assert.strictEqual(data.ok, true);
   assert.strictEqual(data.lead.email, 'sarah.connor@example.com');
@@ -256,4 +256,64 @@ test('GET /api/stats returns runtime, tasks, and sales metrics', async (t) => {
   assert.ok(typeof data.activeTrials === 'number');
   assert.ok(typeof data.totalTasksExecuted === 'number');
   assert.ok(typeof data.completedTasks === 'number');
+  assert.ok(typeof data.externalActiveTrials === 'number');
+  assert.ok(typeof data.uniqueExternalSignups === 'number');
+  assert.ok(typeof data.internalSignups === 'number');
+});
+
+test('POST /api/signup dedupes repeat submissions by normalized email', async (t) => {
+  const server = app.listen(0);
+  t.after(() => server.close());
+
+  const before = JSON.parse((await request(server, { method: 'GET', path: '/api/leads' })).body).count;
+
+  const dedupeEmail = `dedupe.lin58-${Date.now()}@externaltest.io`;
+  const payload = {
+    name: 'Dedupe Test',
+    email: dedupeEmail,
+    company: 'Dedupe Co',
+    plan: 'Growth',
+  };
+  const first = await request(
+    server,
+    { method: 'POST', path: '/api/signup', headers: { 'Content-Type': 'application/json' } },
+    JSON.stringify(payload)
+  );
+  assert.strictEqual(first.status, 201);
+  assert.strictEqual(JSON.parse(first.body).lead.audience, 'external');
+
+  // Same email, different casing/whitespace -> update, not a new row
+  const second = await request(
+    server,
+    { method: 'POST', path: '/api/signup', headers: { 'Content-Type': 'application/json' } },
+    JSON.stringify({ ...payload, email: `  ${dedupeEmail.toUpperCase()} ` })
+  );
+  assert.strictEqual(second.status, 200);
+  const secondData = JSON.parse(second.body);
+  assert.strictEqual(secondData.repeat, true);
+  assert.strictEqual(secondData.lead.email, dedupeEmail);
+
+  const after = JSON.parse((await request(server, { method: 'GET', path: '/api/leads' })).body).count;
+  assert.strictEqual(after, before + 1);
+});
+
+test('internal QA emails are tagged internal and excluded from external stats', async (t) => {
+  const server = app.listen(0);
+  t.after(() => server.close());
+
+  const statsBefore = JSON.parse((await request(server, { method: 'GET', path: '/api/stats' })).body);
+
+  const res = await request(
+    server,
+    { method: 'POST', path: '/api/signup', headers: { 'Content-Type': 'application/json' } },
+    JSON.stringify({ name: 'QA Audit', email: `audit+lin58-${Date.now()}@agentmail.to`, company: 'Linda QA' })
+  );
+  assert.strictEqual(res.status, 201);
+  assert.strictEqual(JSON.parse(res.body).lead.audience, 'internal');
+
+  const statsAfter = JSON.parse((await request(server, { method: 'GET', path: '/api/stats' })).body);
+  assert.strictEqual(statsAfter.totalSignups, statsBefore.totalSignups + 1);
+  assert.strictEqual(statsAfter.internalSignups, statsBefore.internalSignups + 1);
+  assert.strictEqual(statsAfter.uniqueExternalSignups, statsBefore.uniqueExternalSignups);
+  assert.strictEqual(statsAfter.externalActiveTrials, statsBefore.externalActiveTrials);
 });
