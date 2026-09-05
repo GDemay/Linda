@@ -13,6 +13,7 @@ import { db, newAccount, VALID_PASSWORD } from './helpers.ts';
 describe('lead visibility — dedupe and audience split', () => {
   it('classifies internal QA and founder accounts as internal', () => {
     expect(leadAudience('qa@agentmail.to')).toBe('internal');
+    expect(leadAudience('qa-smoke-ceo@linda.internal')).toBe('internal');
     expect(leadAudience('audit+lin49@example.com')).toBe('internal');
     expect(leadAudience('founder@redacted.example')).toBe('internal');
     expect(leadAudience('founder@ACME.example')).toBe('external');

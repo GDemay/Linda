@@ -19,6 +19,7 @@ export function normalizeEmail(email: string): string {
 
 const INTERNAL_EMAIL_PATTERNS = [
   /@agentmail\.to$/, // internal QA inboxes
+  /@linda\.internal$/, // agent smoke-test accounts on the reserved QA domain
   /^audit\+/, // audit+lin49-style QA signups
   /^founder@redacted\.example$/, // founder smoke tests
 ];
