@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linda — Multi-Agent Autonomous Dashboard</title>
+  <meta name="description" content="Manage and dispatch tasks across all 8 autonomous AI agents in real time.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090a0f;
+      --surface: #11131a;
+      --surface-elevated: #181b24;
+      --surface-card: #1c202d;
+      --border: #222634;
+      --border-focus: #3d445c;
+      --text: #f0f2f8;
+      --text-muted: #8b92a5;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-glow: rgba(79, 70, 229, 0.25);
+      --ok: #10b981;
+      --ok-bg: rgba(16, 185, 129, 0.12);
+      --font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    aside.sidebar {
+      width: 280px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .sidebar-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #9333ea);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      color: white;
+    }
+    .badge-trial {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--ok-bg);
+      color: var(--ok);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .agent-nav-label {
+      padding: 16px 24px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+    }
+    .agent-nav-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .agent-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+    .agent-nav-item:hover {
+      background: var(--surface-elevated);
+      color: var(--text);
+    }
+    .agent-nav-item.active {
+      background: rgba(79, 70, 229, 0.15);
+      border-color: rgba(79, 70, 229, 0.4);
+      color: #fff;
+    }
+    .agent-avatar-small {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      color: white;
+      flex-shrink: 0;
+    }
+    .agent-nav-meta {
+      flex: 1;
+      overflow: hidden;
+    }
+    .agent-nav-name {
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .agent-nav-role {
+      font-size: 11px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+      display: inline-block;
+    }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .company-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .company-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #252a38;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #818cf8;
+    }
+
+    /* Main Container */
+    main.main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* Top Bar */
+    header.topbar {
+      height: 64px;
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(17, 19, 26, 0.8);
+      backdrop-filter: blur(8px);
+      flex-shrink: 0;
+    }
+    .topbar-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-stats {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .topbar-stat-val {
+      font-weight: 700;
+      color: var(--text);
+      font-family: var(--mono);
+    }
+
+    /* Scrollable Workspace Body */
+    .dashboard-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Active Agent Hero Card */
+    .agent-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .agent-hero-glow {
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(79, 70, 229, 0.15) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+    }
+    .agent-hero-info {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .agent-hero-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 26px;
+      color: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .agent-hero-name {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .agent-tag {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-elevated);
+      color: #94a3b8;
+    }
+    .agent-hero-desc {
+      color: var(--text-muted);
+      font-size: 14px;
+      max-width: 600px;
+      margin-top: 4px;
+    }
+    .agent-hero-meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #64748b;
+      font-family: var(--mono);
+    }
+
+    /* Task Dispatch Section */
+    .dispatch-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+    }
+    .dispatch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .dispatch-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .prompt-suggestions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .chip {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover {
+      border-color: #818cf8;
+      color: var(--text);
+      background: rgba(99, 102, 241, 0.1);
+    }
+    .dispatch-form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .task-input {
+      width: 100%;
+      min-height: 100px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: var(--font);
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+    .task-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+    .dispatch-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: var(--surface-elevated);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: #252a38;
+    }
+
+    /* Tasks History & Artifacts Feed */
+    .history-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .task-item {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.2s;
+    }
+    .task-item:hover {
+      border-color: #3d445c;
+    }
+    .task-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .task-agent-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .task-time {
+      font-size: 12px;
+      color: #64748b;
+      font-family: var(--mono);
+    }
+    .task-prompt-text {
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .task-artifact {
+      background: #0d0e14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .task-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-completed {
+      background: var(--ok-bg);
+      color: var(--ok);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-in_progress {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .status-failed {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* Empty state */
+    .empty-tasks {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* Modal / Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1f2433;
+      border: 1px solid #3d445c;
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      z-index: 100;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar: 8 Autonomous Agents Navigation -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="/" class="brand">
+        <div class="brand-icon">L</div>
+        <span>Linda</span>
+      </a>
+      <span class="badge-trial">14D Trial</span>
+    </div>
+
+    <div class="agent-nav-label">Autonomous Workforce (8)</div>
+    <nav class="agent-nav-list" id="agent-nav-container">
+      <!-- Populated via JS -->
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="company-pill">
+        <div class="company-avatar" id="company-avatar">A</div>
+        <div>
+          <div style="font-weight: 700; font-size: 13px;" id="company-name-label">Apex Growth Partners</div>
+          <div style="font-size: 11px; color: #64748b;" id="user-plan-label">Growth Plan · Active</div>
+        </div>
+      </div>
+      <div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 12px;">
+        <a href="/" style="color: var(--text-muted); text-decoration: none;">← Public Site</a>
+        <a href="/signup" style="color: #818cf8; text-decoration: none;">Account Settings</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-title">
+        <span class="status-dot"></span>
+        <span id="active-agent-title">Elio</span>
+        <span style="font-size: 13px; font-weight: 400; color: var(--text-muted);" id="active-agent-role-header">B2B Outbound Sales Rep</span>
+      </div>
+
+      <div class="topbar-stats">
+        <div>Engine: <span class="topbar-stat-val" id="model-badge">gpt-5.6-luna</span></div>
+        <div>Tasks Executed: <span class="topbar-stat-val" id="total-tasks-stat">0</span></div>
+        <div>Active Agents: <span class="topbar-stat-val">8 / 8</span></div>
+      </div>
+    </header>
+
+    <!-- Workspace Scrollable Body -->
+    <div class="dashboard-body">
+
+      <!-- Active Agent Hero Banner -->
+      <div class="agent-hero">
+        <div class="agent-hero-glow"></div>
+        <div class="agent-hero-info">
+          <div class="agent-hero-avatar" id="hero-avatar" style="background: linear-gradient(135deg, #6366f1, #9333ea);">E</div>
+          <div>
+            <div class="agent-hero-name">
+              <span id="hero-name">Elio</span>
+              <span class="agent-tag" id="hero-tag">Sales</span>
+              <span class="task-status-pill status-completed" style="font-size: 10px;">🟢 Online & Autonomous</span>
+            </div>
+            <p class="agent-hero-desc" id="hero-desc">
+              Discovers qualified B2B leads, crafts personalized cold outbound sequences, and keeps CRM records updated.
+            </p>
+            <div class="agent-hero-meta">
+              <span>Permissions: <strong style="color: #cbd5e1;" id="hero-autonomy">Outbound email sequences & CRM syncing</strong></span>
+              <span>·</span>
+              <span>Execution SLA: <strong style="color: #cbd5e1;">Instant (~2s)</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-secondary" onclick="window.print()" style="font-size: 12px; padding: 6px 12px;">
+          Export Artifacts
+        </button>
+      </div>
+
+      <!-- Task Dispatch Card -->
+      <div class="dispatch-card">
+        <div class="dispatch-header">
+          <div>
+            <h3>Dispatch Job to <span id="dispatch-agent-name">Elio</span></h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+              Give instructions or select a template below. The agent executes autonomously and writes full production deliverables.
+            </p>
+          </div>
+        </div>
+
+        <!-- Pre-populated Quick Prompt Chips -->
+        <div class="prompt-suggestions" id="prompt-chips-container">
+          <!-- Populated dynamically based on active agent -->
+        </div>
+
+        <form class="dispatch-form" id="dispatch-form" onsubmit="handleDispatch(event)">
+          <textarea
+            id="task-input"
+            class="task-input"
+            placeholder="Type your task instructions here (e.g. 'Draft a high-converting 3-step cold email sequence targeting commercial HVAC founders suffering lead leakage')..."
+            required
+          ></textarea>
+
+          <div class="dispatch-actions">
+            <span style="font-size: 12px; color: #64748b;">
+              ⚡ Zero humans in loop · Real-time inference · Production artifact generated
+            </span>
+            <button type="submit" id="dispatch-btn" class="btn btn-primary">
+              Dispatch Task Now →
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Real-time Task History & Artifacts -->
+      <div class="history-card">
+        <div class="history-header">
+          <div>
+            <h3>Live Agent Activity & Execution Artifacts</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+              Output deliverables written by your autonomous workforce.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" onclick="fetchTasks()" style="font-size: 12px; padding: 6px 12px;">
+              ↻ Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="task-list" id="task-list-container">
+          <!-- Populated dynamically via fetchTasks() -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <div class="toast" id="toast-msg">Task executed successfully!</div>
+
+  <script>
+    let activeAgentKey = 'Elio';
+    let agentsList = [];
+    let allTasks = [];
+
+    // Parse URL params for onboarding bridge
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialAgent = urlParams.get('agent');
+    const initialCompany = urlParams.get('company');
+    const initialPlan = urlParams.get('plan');
+    const initialEmail = urlParams.get('email');
+
+    if (initialAgent) {
+      activeAgentKey = initialAgent.charAt(0).toUpperCase() + initialAgent.slice(1);
+    }
+    if (initialCompany) {
+      document.getElementById('company-name-label').textContent = initialCompany;
+      document.getElementById('company-avatar').textContent = initialCompany.charAt(0).toUpperCase();
+    }
+    if (initialPlan) {
+      document.getElementById('user-plan-label').textContent = initialPlan.charAt(0).toUpperCase() + initialPlan.slice(1) + ' Plan · Active';
+    }
+
+    async function initDashboard() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        agentsList = data.agents || [];
+        renderSidebar();
+        selectAgent(activeAgentKey);
+        await fetchTasks();
+      } catch (err) {
+        console.error('Failed to initialize dashboard:', err);
+      }
+    }
+
+    function renderSidebar() {
+      const container = document.getElementById('agent-nav-container');
+      container.innerHTML = '';
+
+      agentsList.forEach(agent => {
+        const item = document.createElement('div');
+        item.className = `agent-nav-item ${agent.name.toLowerCase() === activeAgentKey.toLowerCase() ? 'active' : ''}`;
+        item.id = `nav-agent-${agent.name}`;
+        item.onclick = () => selectAgent(agent.name);
+
+        item.innerHTML = `
+          <div class="agent-avatar-small" style="background: ${agent.color || '#4f46e5'}">${agent.avatar}</div>
+          <div class="agent-nav-meta">
+            <div class="agent-nav-name">
+              <span>${agent.name}</span>
+              <span class="status-dot"></span>
+            </div>
+            <div class="agent-nav-role">${agent.badge}</div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function selectAgent(agentName) {
+      const agent = agentsList.find(a => a.name.toLowerCase() === agentName.toLowerCase()) || agentsList[0];
+      if (!agent) return;
+
+      activeAgentKey = agent.name;
+
+      // Update sidebar active item
+      document.querySelectorAll('.agent-nav-item').forEach(el => el.classList.remove('active'));
+      const activeNav = document.getElementById(`nav-agent-${agent.name}`);
+      if (activeNav) activeNav.classList.add('active');
+
+      // Update Topbar
+      document.getElementById('active-agent-title').textContent = agent.name;
+      document.getElementById('active-agent-role-header').textContent = agent.role;
+
+      // Update Hero
+      document.getElementById('hero-name').textContent = agent.name;
+      document.getElementById('hero-avatar').textContent = agent.avatar;
+      document.getElementById('hero-avatar').style.background = `linear-gradient(135deg, ${agent.color || '#4f46e5'}, #7c3aed)`;
+      document.getElementById('hero-tag').textContent = agent.badge;
+      document.getElementById('hero-desc').textContent = agent.description;
+      document.getElementById('hero-autonomy').textContent = agent.autonomy;
+
+      // Update Dispatch Form
+      document.getElementById('dispatch-agent-name').textContent = agent.name;
+      document.getElementById('task-input').placeholder = `Type your instructions for ${agent.name}...`;
+
+      // Render Prompt suggestions chips
+      const chipsContainer = document.getElementById('prompt-chips-container');
+      chipsContainer.innerHTML = '';
+      (agent.samplePrompts || []).forEach(prompt => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'chip';
+        chip.textContent = prompt;
+        chip.onclick = () => {
+          document.getElementById('task-input').value = prompt;
+          document.getElementById('task-input').focus();
+        };
+        chipsContainer.appendChild(chip);
+      });
+    }
+
+    async function fetchTasks() {
+      try {
+        const res = await fetch('/api/tasks?limit=50');
+        const data = await res.json();
+        allTasks = data.tasks || [];
+        document.getElementById('total-tasks-stat').textContent = allTasks.length;
+        renderTasks();
+      } catch (err) {
+        console.error('Failed to fetch tasks:', err);
+      }
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('task-list-container');
+      container.innerHTML = '';
+
+      if (allTasks.length === 0) {
+        container.innerHTML = `<div class="empty-tasks">No tasks executed yet. Dispatch your first job above!</div>`;
+        return;
+      }
+
+      allTasks.forEach(task => {
+        const item = document.createElement('div');
+        item.className = 'task-item';
+
+        const agentObj = agentsList.find(a => a.name.toLowerCase() === task.agent.toLowerCase());
+        const color = agentObj ? agentObj.color : '#4f46e5';
+
+        const formattedTime = new Date(task.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        item.innerHTML = `
+          <div class="task-item-top">
+            <div class="task-agent-badge">
+              <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${color};"></span>
+              <span style="color:#fff;">${task.agent}</span>
+              <span style="color:#64748b; font-weight:400; font-size:12px;">• ${task.title}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="task-status-pill status-${task.status}">${task.status}</span>
+              <span class="task-time">${formattedTime}</span>
+            </div>
+          </div>
+
+          <div class="task-prompt-text">
+            <strong style="color: #94a3b8; font-size: 12px; text-transform: uppercase;">Instructions:</strong><br/>
+            ${escapeHtml(task.input)}
+          </div>
+
+          ${task.output ? `
+            <div>
+              <div style="font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">
+                Deliverable Artifact (${task.tokensUsed || 0} tokens):
+              </div>
+              <div class="task-artifact">${escapeHtml(task.output)}</div>
+            </div>
+          ` : `
+            <div style="font-size: 13px; color: #f59e0b;">Task is executing in background...</div>
+          `}
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    async function handleDispatch(e) {
+      e.preventDefault();
+      const input = document.getElementById('task-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const btn = document.getElementById('dispatch-btn');
+      btn.disabled = true;
+      btn.textContent = `Executing with ${activeAgentKey}...`;
+
+      try {
+        const res = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent: activeAgentKey,
+            input: text,
+            sync: true
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.task) {
+          input.value = '';
+          showToast(`Task executed by ${activeAgentKey}!`);
+          await fetchTasks();
+        } else {
+          alert('Task dispatch error: ' + (data.error || 'Check server logs.'));
+        }
+      } catch (err) {
+        alert('Network error while dispatching task: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Dispatch Task Now →';
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast-msg');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    window.addEventListener('DOMContentLoaded', initDashboard);
+  </script>
+</body>
+</html>
