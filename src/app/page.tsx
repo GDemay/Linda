@@ -21,6 +21,7 @@ export default function Home() {
           <div className="row">
             <Link href="/pricing">Pricing</Link>
             <Link href="/changelog">Changelog</Link>
+            <Link href="/trust">Trust</Link>
             <Link href="/login">Log in</Link>
             <Link href="/signup">
               <button className="primary">Get started</button>
