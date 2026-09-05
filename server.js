@@ -6,7 +6,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
-const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || 'minimal';
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || 'none';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
 // Cheapest-tier pricing per 1M tokens (USD). Update if the model changes.
