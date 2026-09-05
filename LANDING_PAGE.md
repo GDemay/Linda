@@ -53,23 +53,45 @@ Linda provides small businesses, agencies, and founders with a fully autonomous 
 
 ---
 
-## 3. Usage Guidelines for Team Agents
+## 3. Self-Serve Onboarding Flow & Lead Capture
 
-- **Outbound Sales Rep (SDR):**
-  - Use `https://linda-llm-production.up.railway.app` as the primary link in cold email sequences.
-  - Emphasize the interactive demo: prospects can test the agent in real time without scheduling a meeting.
-- **Social Media & Community Lead:**
-  - Link directly to the live landing page in Reddit, Indie Hackers, and X threads.
-  - Highlight the self-serve, transparent pricing angle.
-- **Product Engineer:**
-  - Maintain service uptime and monitor `/health` and `/admin?token=<ADMIN_TOKEN>`.
-  - Ensure all updates follow the CI loop (`npm test` -> branch PR -> CI pass -> merge).
-- **Research Analyst & Designer:**
-  - Continually review conversion copy, user feedback, and competitive positioning.
+1. **Instant Signup & Activation (`/signup` and `/workspace`):**
+   - Direct self-serve signup flow requesting Name, Work Email, Company, Plan, and starting Lead Agent.
+   - Zero credit card gate, 14-day free trial on all plans.
+   - Automatic dispatch of transactional welcome email via AgentMail (`guillaume-5295@agentmail.to`).
+   - Seamless transition into the **Instant Onboarding Workspace**:
+     - Deploys the selected lead agent (Elio, Tom, Lou, John, Manue, Julia).
+     - Renders role-specific prompt chips for 1-click execution.
+     - Live interactive chat interface connected to `POST /api/chat` running `gpt-5.6-luna`.
+     - Delivers **instant time-to-value within 60 seconds** with zero human in the loop.
+
+2. **Lead Capture & Sales Intelligence API:**
+   - `POST /api/signup`: Creates lead with plan selection, stores in `leads.json`, dispatches welcome email.
+   - `GET /api/leads`: Returns captured leads and trial registrations for SDR conversion tracking.
+   - `GET /api/stats`: Real-time operational metrics (total requests, signups, active trials).
 
 ---
 
-## 4. Operational & Health Verification
+## 4. Usage Guidelines for Team Agents
+
+- **Outbound Sales Rep (SDR):**
+  - Use `https://linda-llm-production.up.railway.app/signup` as the primary conversion link in cold email sequences.
+  - Emphasize zero-human onboarding: prospects can launch their agent in 3 minutes without scheduling a sales call.
+  - Query `GET /api/leads` to track incoming trials from outbound campaigns.
+- **Social Media & Community Lead:**
+  - Link directly to `https://linda-llm-production.up.railway.app/signup` in Reddit, Indie Hackers, and X bios.
+  - Highlight the 14-day cardless trial and instant agent execution.
+- **Product Engineer:**
+  - Maintain service uptime and monitor `/health`, `/admin`, and `/api/stats`.
+  - Ensure all updates follow the CI loop (`npm test` -> branch PR -> CI pass -> merge).
+- **Research Analyst & Designer:**
+  - Continually review conversion copy, user feedback, and competitive positioning against Limova.ai.
+
+---
+
+## 5. Operational & Health Verification
 
 - **Health Check:** `GET https://linda-llm-production.up.railway.app/health` -> `{"status":"ok","model":"gpt-5.6-luna","hasApiKey":true}`
 - **Interactive Chat API:** `POST https://linda-llm-production.up.railway.app/api/chat` with `{"message":"..."}`
+- **Self-Serve Signup:** `POST https://linda-llm-production.up.railway.app/api/signup` with `{"name":"...","email":"...","company":"...","plan":"Growth"}`
+- **Lead Metrics:** `GET https://linda-llm-production.up.railway.app/api/leads`
