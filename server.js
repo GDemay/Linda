@@ -148,6 +148,54 @@ const AGENTS = {
   }
 };
 
+// -------------------------------------------------------------
+// LEAD HYGIENE: normalization, dedupe, internal/external tagging
+// -------------------------------------------------------------
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+const INTERNAL_EMAIL_PATTERNS = [
+  /@agentmail\.to$/,                    // internal QA inboxes
+  /^audit\+/,                           // audit+lin49-style QA signups
+  /^founder@redacted\.example$/,       // founder smoke tests
+];
+
+function leadAudience(email) {
+  const norm = normalizeEmail(email);
+  return INTERNAL_EMAIL_PATTERNS.some((re) => re.test(norm)) ? 'internal' : 'external';
+}
+
+// Dedupe by normalized email (keeping the earliest submission) and backfill
+// the audience tag so repeat signups and internal QA accounts don't
+// inflate the sales conversion metrics.
+function dedupeAndTagLeads(list) {
+  const byEmail = new Map();
+  for (const lead of list) {
+    if (!lead || typeof lead !== 'object') continue;
+    const key = normalizeEmail(lead.email);
+    if (!key.includes('@')) continue;
+    lead.email = key;
+    lead.audience = leadAudience(key);
+    const existing = byEmail.get(key);
+    if (!existing || String(lead.createdAt || '') < String(existing.createdAt || '')) {
+      byEmail.set(key, lead);
+    }
+  }
+  return Array.from(byEmail.values()).sort((a, b) =>
+    String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+  );
+}
+
+function saveLeads() {
+  try {
+    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to write leads file:', e.message);
+  }
+}
+
 let leads = [];
 try {
   if (fs.existsSync(LEADS_FILE)) {
@@ -155,6 +203,12 @@ try {
   }
 } catch (e) {
   leads = [];
+}
+const rawLeadCount = leads.length;
+leads = dedupeAndTagLeads(leads);
+if (leads.length !== rawLeadCount) {
+  console.log(`Lead hygiene: deduped ${rawLeadCount} leads -> ${leads.length}`);
+  saveLeads();
 }
 
 let tasks = [];
@@ -494,26 +548,47 @@ app.post('/api/signup', async (req, res) => {
     return res.status(400).json({ error: 'A valid work email address is required.' });
   }
 
+  const normalizedEmail = normalizeEmail(email);
+
+  // Repeat submission: update the existing lead instead of appending a duplicate row.
+  const existing = leads.find((l) => l.email === normalizedEmail);
+  if (existing) {
+    existing.name = (name || existing.name || '').trim();
+    existing.company = (company || existing.company || '').trim();
+    existing.plan = plan || existing.plan;
+    existing.focusAgent = focusAgent || existing.focusAgent;
+    existing.referralSource = referralSource || existing.referralSource;
+    existing.status = 'active_trial';
+    existing.audience = leadAudience(normalizedEmail);
+    existing.updatedAt = new Date().toISOString();
+    saveLeads();
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Trial already active — your details have been updated.',
+      repeat: true,
+      lead: existing,
+      redirectUrl: `/app?email=${encodeURIComponent(existing.email)}&agent=${encodeURIComponent(existing.focusAgent)}&plan=${encodeURIComponent(existing.plan)}&company=${encodeURIComponent(existing.company)}`,
+    });
+  }
+
   const lead = {
     id: 'lead_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     name: (name || '').trim(),
-    email: email.trim().toLowerCase(),
+    email: normalizedEmail,
     company: (company || '').trim(),
     plan,
     focusAgent,
     referralSource,
     createdAt: new Date().toISOString(),
     status: 'active_trial',
+    audience: leadAudience(normalizedEmail),
   };
 
   leads.unshift(lead);
-  try {
-    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Failed to write leads file:', e.message);
-  }
+  saveLeads();
 
-  // Dispatch transactional email asynchronously
+  // Dispatch transactional email asynchronously (new leads only)
   sendWelcomeEmail(lead).catch((err) => console.error(err));
 
   res.status(201).json({
@@ -535,11 +610,15 @@ app.get('/api/leads', (req, res) => {
 });
 
 app.get('/api/stats', (req, res) => {
+  const externalLeads = leads.filter((l) => (l.audience || leadAudience(l.email)) === 'external');
   res.json({
     ok: true,
     totalRequests: usage.requestCount,
     totalSignups: leads.length,
     activeTrials: leads.filter(l => l.status === 'active_trial').length,
+    uniqueExternalSignups: externalLeads.length,
+    externalActiveTrials: externalLeads.filter(l => l.status === 'active_trial').length,
+    internalSignups: leads.length - externalLeads.length,
     totalTasksExecuted: tasks.length,
     completedTasks: tasks.filter(t => t.status === 'completed').length,
     recentSignups: leads.slice(0, 5),
