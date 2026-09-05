@@ -65,6 +65,19 @@ export async function body<T = unknown>(req: Request): Promise<T> {
   }
 }
 
+/**
+ * Public origin for links in outbound email. Behind Railway's proxy req.url
+ * carries the internal origin (https://localhost:8080), so prefer the
+ * forwarded host/proto headers, with APP_ORIGIN as a deterministic override.
+ */
+export function publicOrigin(req: Request): string {
+  if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN.replace(/\/$/, '');
+  const url = new URL(req.url);
+  const host = req.headers.get('x-forwarded-host') ?? url.host;
+  const proto = req.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');
+  return `${proto}://${host}`;
+}
+
 /** Authenticated caller, no workspace scope. */
 export function requireUser(req: Request) {
   return authenticate(getDb(), tokenFrom(req));
