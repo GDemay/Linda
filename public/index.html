@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linda — AI Agent Workforce That Onboards Itself</title>
+  <meta name="description" content="Linda gives small teams a workforce of AI agents for prospecting, marketing, SEO, screening, and admin. 100% self-serve. No demo booking, no sales call.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090a0f;
+      --surface: #11131a;
+      --surface-elevated: #181b24;
+      --border: #222634;
+      --text: #f0f2f8;
+      --text-muted: #8b92a5;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-glow: rgba(79, 70, 229, 0.25);
+      --ok: #10b981;
+      --ok-bg: rgba(16, 185, 129, 0.12);
+      --font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    header.topbar {
+      border-bottom: 1px solid var(--border);
+      background: rgba(9, 10, 15, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 72px;
+    }
+    .brand {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand span {
+      background: linear-gradient(135deg, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--surface-elevated);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover {
+      background: #202430;
+      border-color: #33384a;
+    }
+    .hero {
+      padding: 96px 0 64px;
+      text-align: center;
+      position: relative;
+    }
+    .hero-glow {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(79, 70, 229, 0.18) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--ok-bg);
+      color: var(--ok);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-bottom: 24px;
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+    }
+    h1 {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.12;
+      max-width: 860px;
+      margin: 0 auto 20px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero p {
+      font-size: 19px;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 36px;
+      line-height: 1.6;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-group {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-proof {
+      font-size: 14px;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+    .steps-section {
+      padding: 64px 0;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 768px) {
+      .grid-3 { grid-template-columns: 1fr; }
+      h1 { font-size: 38px; }
+      .nav-links { display: none; }
+    }
+    .step-num {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: #818cf8;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+    .step-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .step-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .section-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .section-header h2 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .agent-card:hover {
+      border-color: #3d445c;
+      transform: translateY(-2px);
+    }
+    .agent-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .agent-name {
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .agent-badge {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--surface-elevated);
+      color: #94a3b8;
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .agent-blurb {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .agent-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #64748b;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .pricing-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+    }
+    .pricing-card.highlight {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, rgba(79, 70, 229, 0.08) 0%, var(--surface) 100%);
+      box-shadow: 0 0 30px rgba(79, 70, 229, 0.15);
+    }
+    .price-val {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 16px 0 6px;
+    }
+    .price-val span {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    .pricing-features {
+      list-style: none;
+      margin: 24px 0;
+      flex-grow: 1;
+    }
+    .pricing-features li {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pricing-features li::before {
+      content: "✓";
+      color: var(--ok);
+      font-weight: bold;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 48px 0;
+      text-align: center;
+      margin-top: 96px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav-inner">
+      <a href="#" class="brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="#818cf8" stroke-width="2.5"/>
+          <path d="M12 7v10M7 12h10" stroke="#c084fc" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span>Linda</span>
+      </a>
+      <div class="nav-links">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#agents">Agents</a>
+        <a href="#pricing">Pricing</a>
+        <a href="/admin" class="btn btn-secondary" style="padding: 8px 16px;">Admin Status</a>
+        <a href="#pricing" class="btn btn-primary" style="padding: 8px 16px;">Get Started</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Production Live on Railway · 100% Self-Serve
+      </div>
+      <h1>Agents that onboard themselves.</h1>
+      <p>
+        Linda is an AI agent workforce for the work that repeats — prospecting, content, SEO, support, screening, and admin. You sign up, connect your tools, and it starts. There's no setup call, because there's nothing for us to set up.
+      </p>
+      <div class="cta-group">
+        <a href="#pricing" class="btn btn-primary" style="padding: 14px 28px; font-size: 16px;">Start free 14-day trial</a>
+        <a href="#how-it-works" class="btn btn-secondary" style="padding: 14px 28px; font-size: 16px;">See how it works</a>
+      </div>
+      <div class="hero-proof">
+        ✓ No credit card required &nbsp;·&nbsp; ✓ No demo booking &nbsp;·&nbsp; ✓ No waiting list
+      </div>
+    </section>
+
+    <!-- 3 Steps -->
+    <section id="how-it-works" class="steps-section">
+      <div class="card grid-3">
+        <div class="step-card">
+          <span class="step-num">STEP 1</span>
+          <h3>Sign up in seconds</h3>
+          <p>Email and password. That's the entire gate. No sales qualification, no schedule booking, no human approval queue.</p>
+        </div>
+        <div class="step-card">
+          <span class="step-num">STEP 2</span>
+          <h3>Connect your tools</h3>
+          <p>Pick the apps you already use (Google, Stripe, Slack, HubSpot, etc.). Linda infers your workflow and configures itself.</p>
+        </div>
+        <div class="step-card">
+          <span class="step-num">STEP 3</span>
+          <h3>Autonomous execution</h3>
+          <p>Give it a goal or trigger a workflow. Tasks execute autonomously, asynchronously, and report clean results.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agents Roster -->
+    <section id="agents" style="padding: 64px 0;">
+      <div class="section-header">
+        <h2>Meet your autonomous workforce</h2>
+        <p>Eight specialized agents working 24/7 on the permissions you grant.</p>
+      </div>
+
+      <div class="roster-grid">
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">Tom</span>
+              <span class="agent-badge">Phone</span>
+            </div>
+            <p class="agent-blurb">Answers inbound customer queries, schedules calls, and qualifies leads via WhatsApp and inbox.</p>
+          </div>
+          <div class="agent-meta">Autonomy: Inbox, Messaging</div>
+        </div>
+
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">John</span>
+              <span class="agent-badge">Marketing</span>
+            </div>
+            <p class="agent-blurb">Plans, drafts, and schedules social content across Twitter, LinkedIn, and newsletters with visual assets.</p>
+          </div>
+          <div class="agent-meta">Autonomy: Multi-channel social</div>
+        </div>
+
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">Lou</span>
+              <span class="agent-badge">SEO</span>
+            </div>
+            <p class="agent-blurb">Audits site health, identifies competitor keyword gaps, and drafts search-optimized content that ranks.</p>
+          </div>
+          <div class="agent-meta">Autonomy: SERP & Keyword research</div>
+        </div>
+
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">Elio</span>
+              <span class="agent-badge">Sales</span>
+            </div>
+            <p class="agent-blurb">Discovers qualified B2B leads, crafts personalized cold outbound sequences, and keeps CRM records updated.</p>
+          </div>
+          <div class="agent-meta">Autonomy: Outbound outreach</div>
+        </div>
+
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">Manue</span>
+              <span class="agent-badge">Finance</span>
+            </div>
+            <p class="agent-blurb">Reconciles bank accounts, forecasts cash runway, sends invoice reminders, and surfaces anomalous expenses.</p>
+          </div>
+          <div class="agent-meta">Autonomy: Bookkeeping & Runway</div>
+        </div>
+
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">Julia</span>
+              <span class="agent-badge">Legal</span>
+            </div>
+            <p class="agent-blurb">Reviews vendor contracts, flags non-standard liability clauses, and drafts standard NDAs and MSAs.</p>
+          </div>
+          <div class="agent-meta">Autonomy: Document review & Risk</div>
+        </div>
+
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">Rony</span>
+              <span class="agent-badge">Recruiting</span>
+            </div>
+            <p class="agent-blurb">Parses candidate CVs against hiring rubrics, coordinates screening, and crafts personalized interview loops.</p>
+          </div>
+          <div class="agent-meta">Autonomy: Applicant triage</div>
+        </div>
+
+        <div class="agent-card">
+          <div>
+            <div class="agent-top">
+              <span class="agent-name">Charly</span>
+              <span class="agent-badge">Chief of Staff</span>
+            </div>
+            <p class="agent-blurb">Coordinates agent cross-dependencies, synthesizes daily executive digests, and escalates blockers to you.</p>
+          </div>
+          <div class="agent-meta">Autonomy: Workflow orchestration</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transparent Pricing -->
+    <section id="pricing" style="padding: 64px 0;">
+      <div class="section-header">
+        <h2>Transparent pricing. No quotes. No sales calls.</h2>
+        <p>Every agent and every integration is included on every plan. Pay only for team capacity.</p>
+      </div>
+
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <h3>Starter</h3>
+          <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">For solo founders and operators.</p>
+          <div class="price-val">$49<span>/mo</span></div>
+          <p style="font-size: 13px; color: var(--text-muted);">$490/yr billed annually (2 months free)</p>
+          <ul class="pricing-features">
+            <li>1 team member seat</li>
+            <li>All 8 autonomous agents</li>
+            <li>All 15 native connectors</li>
+            <li>Standard execution limits</li>
+            <li>Community support</li>
+          </ul>
+          <a href="#" class="btn btn-secondary" style="margin-top: auto; width: 100%;">Start 14-day trial</a>
+        </div>
+
+        <div class="pricing-card highlight">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>Growth</h3>
+            <span class="badge" style="margin: 0;">Most Popular</span>
+          </div>
+          <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">For fast-moving small teams.</p>
+          <div class="price-val">$149<span>/mo</span></div>
+          <p style="font-size: 13px; color: var(--text-muted);">$1,490/yr billed annually (2 months free)</p>
+          <ul class="pricing-features">
+            <li>Up to 5 team member seats</li>
+            <li>All 8 autonomous agents</li>
+            <li>All 15 native connectors</li>
+            <li>High priority inference queue</li>
+            <li>Automated recurring workflows</li>
+            <li>Priority email support</li>
+          </ul>
+          <a href="#" class="btn btn-primary" style="margin-top: auto; width: 100%;">Start 14-day trial</a>
+        </div>
+
+        <div class="pricing-card">
+          <h3>Scale</h3>
+          <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">For growing businesses & agencies.</p>
+          <div class="price-val">$399<span>/mo</span></div>
+          <p style="font-size: 13px; color: var(--text-muted);">$3,990/yr billed annually (2 months free)</p>
+          <ul class="pricing-features">
+            <li>Up to 20 team member seats</li>
+            <li>All 8 autonomous agents</li>
+            <li>All 15 native connectors</li>
+            <li>Maximum throughput execution</li>
+            <li>Custom approval rules & audit log</li>
+            <li>Dedicated SLA & support</li>
+          </ul>
+          <a href="#" class="btn btn-secondary" style="margin-top: auto; width: 100%;">Start 14-day trial</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section style="margin: 64px 0; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 64px 24px;">
+      <h2 style="font-size: 36px; font-weight: 800; margin-bottom: 16px;">You could be running before this tab closes.</h2>
+      <p style="color: var(--text-muted); font-size: 17px; max-width: 600px; margin: 0 auto 32px;">
+        Zero human gatekeepers. Fully transparent pricing. Experience an autonomous workforce operating for your business right now.
+      </p>
+      <a href="#pricing" class="btn btn-primary" style="padding: 14px 32px; font-size: 16px;">Set up your team in 3 minutes</a>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>© 2026 Linda Technologies Inc. Built with no-human-in-the-loop architecture. All rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>
