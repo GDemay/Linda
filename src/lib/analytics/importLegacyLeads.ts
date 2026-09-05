@@ -12,7 +12,11 @@ import { normalizeEmail } from './leads.ts';
  * matched by normalized email and left untouched, so re-running is a no-op.
  */
 
-const LEGACY_LEADS_FILE = path.join(process.cwd(), 'legacy', 'prototype', 'leads.json');
+// Overridable so a fresh DB can be reseeded from a volume file (LINDA_LEGACY_LEADS_PATH)
+// without keeping prospect PII in the repo. See the PII follow-up on LIN-59.
+const LEGACY_LEADS_FILE =
+  process.env.LINDA_LEGACY_LEADS_PATH ??
+  path.join(process.cwd(), 'legacy', 'prototype', 'leads.json');
 
 /** Not a valid scrypt encoding, so verifyPassword() always rejects it. */
 const LEGACY_PASSWORD_HASH = '!legacy-imported';
