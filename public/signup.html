@@ -492,8 +492,11 @@
             </div>
             <h2 id="ws-title" style="font-size: 26px; font-weight: 800;">Welcome to your Linda workspace</h2>
           </div>
-          <div style="text-align: right;">
-            <span style="font-size: 13px; color: var(--text-muted);">14 days remaining on trial</span>
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <a id="open-full-dashboard-btn" href="/app" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px; width: auto;">
+              Open Full 8-Agent Dashboard (/app) →
+            </a>
+            <span style="font-size: 12px; color: var(--text-muted);">14 days remaining on trial</span>
           </div>
         </div>
 
@@ -689,6 +692,12 @@
       document.getElementById('ws-plan-badge').textContent = currentUser.plan + ' Plan';
       document.getElementById('ws-user-email').textContent = currentUser.email;
 
+      const appDashboardUrl = `/app?email=${encodeURIComponent(currentUser.email || '')}&company=${encodeURIComponent(currentUser.company || '')}&plan=${encodeURIComponent(currentUser.plan || 'Growth')}&agent=${encodeURIComponent(currentUser.agent || 'Elio')}`;
+      const dashboardLinkBtn = document.getElementById('open-full-dashboard-btn');
+      if (dashboardLinkBtn) {
+        dashboardLinkBtn.href = appDashboardUrl;
+      }
+
       const agentInfo = AGENT_DATA[currentUser.agent] || AGENT_DATA['Elio'];
       document.getElementById('ws-agent-name').textContent = agentInfo.name;
       document.getElementById('ws-agent-role').textContent = agentInfo.role;
@@ -732,7 +741,7 @@
       // Append Agent loading bubble
       const agentBubble = document.createElement('div');
       agentBubble.className = 'bubble bubble-agent';
-      agentBubble.textContent = 'Executing task...';
+      agentBubble.textContent = `Executing task autonomously with ${currentUser.agent || 'Elio'}...`;
       log.appendChild(agentBubble);
       log.scrollTop = log.scrollHeight;
 
@@ -740,18 +749,23 @@
       btn.textContent = 'Working...';
 
       try {
-        const res = await fetch('/api/chat', {
+        const res = await fetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: `[User from ${currentUser.company || 'SMB'}, Plan: ${currentUser.plan}, Agent: ${currentUser.agent}] ${text}`
+            agent: currentUser.agent || 'Elio',
+            title: text.slice(0, 48),
+            input: `[Company: ${currentUser.company || 'SMB'}, Plan: ${currentUser.plan || 'Growth'}] ${text}`,
+            sync: true
           })
         });
         const data = await res.json();
-        if (res.ok && data.reply) {
-          agentBubble.innerHTML = data.reply.replace(/\n/g, '<br/>');
+        if (res.ok && data.task && data.task.output) {
+          agentBubble.innerHTML = `<div style="font-weight:700; margin-bottom: 6px; color:#10b981;">✓ Output Artifact (${data.task.agent})</div>` +
+            data.task.output.replace(/\n/g, '<br/>') +
+            `<div style="margin-top:12px; font-size:12px;"><a href="/app?agent=${encodeURIComponent(currentUser.agent || 'Elio')}" style="color:#818cf8; text-decoration:underline;">View in Multi-Agent Dashboard →</a></div>`;
         } else {
-          agentBubble.textContent = data.error || 'Task completed with standard confirmation.';
+          agentBubble.textContent = (data && data.error) ? data.error : 'Task dispatched to Linda runtime.';
         }
       } catch (err) {
         agentBubble.textContent = 'Task received and queued in Linda runtime.';

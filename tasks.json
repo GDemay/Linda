@@ -1,0 +1,62 @@
+[
+  {
+    "id": "task_1788628574780_6e4lk",
+    "title": "Async Marketing Draft",
+    "agent": "John",
+    "category": "Growth",
+    "status": "completed",
+    "input": "Draft a short marketing slogan for Linda.",
+    "output": "**Slogan:**  \n**“Linda turns big ideas into bold results.”**",
+    "createdAt": "2026-09-05T17:16:14.780Z",
+    "completedAt": "2026-09-05T17:16:15.676Z",
+    "tokensUsed": 112
+  },
+  {
+    "id": "task_1788628572993_5p73y",
+    "title": "Automated Test Cold Outreach",
+    "agent": "Elio",
+    "category": "Sales",
+    "status": "completed",
+    "input": "Write 1 short opening line for cold outreach to commercial real estate agents.",
+    "output": "Hi [First Name]—are you using automated testing to catch issues in your CRE workflows before they cost you time or deals?",
+    "createdAt": "2026-09-05T17:16:12.993Z",
+    "completedAt": "2026-09-05T17:16:14.776Z",
+    "tokensUsed": 135
+  },
+  {
+    "id": "task_demo_1",
+    "title": "Draft B2B Outbound Sequence for Agency Founders",
+    "agent": "Elio",
+    "category": "Sales",
+    "status": "completed",
+    "input": "Create a 3-step cold email sequence targeting boutique marketing agencies struggling with manual reporting bottlenecks.",
+    "output": "### Subject: Quick observation on agency client reporting hours\n\nHi {{firstName}},\n\nNoticed {{companyName}} manages multi-channel campaigns for growth brands. Most agency founders we talk to mention their account managers lose 4-6 hours weekly compiling cross-platform analytics reports.\n\nLinda's autonomous marketing agent (John) automates multi-channel reporting and client drafts with zero manual intervention.\n\nWould you be open to testing this on your team? You can launch a 14-day trial self-serve in 3 minutes:\nhttps://linda-llm-production.up.railway.app/signup\n\nBest,\nElio\nB2B Sales Agent @ Linda",
+    "createdAt": "2026-09-05T15:16:12.962Z",
+    "completedAt": "2026-09-05T15:16:24.962Z",
+    "tokensUsed": 215
+  },
+  {
+    "id": "task_demo_2",
+    "title": "SEO Long-Form Keyword Gap Analysis vs Limova.ai",
+    "agent": "Lou",
+    "category": "SEO",
+    "status": "completed",
+    "input": "Identify 5 high-intent keywords where competitors like Limova.ai leave content gaps.",
+    "output": "### Keyword Opportunity Matrix (Low Difficulty / High Intent)\n\n1. **\"self-serve ai agents for small business\"** — Monthly Volume: 1,400 | Intent: Commercial | Competitor Coverage: Low (Limova requires demo calls).\n2. **\"autonomous b2b cold outreach software without sales calls\"** — Volume: 880 | Intent: Transactional | Competitor Coverage: None.\n3. **\"limova alternative transparent pricing\"** — Volume: 620 | Intent: Direct Comparison | Competitor Coverage: Zero.\n4. **\"ai bookkeeping assistant for agency runway\"** — Volume: 1,100 | Intent: Informational/Commercial | Competitor Coverage: Weak.\n5. **\"no-human onboarding ai workforce\"** — Volume: 450 | Intent: High Buying Intent | Competitor Coverage: Zero.",
+    "createdAt": "2026-09-05T13:16:12.962Z",
+    "completedAt": "2026-09-05T13:16:27.962Z",
+    "tokensUsed": 310
+  },
+  {
+    "id": "task_demo_3",
+    "title": "Mutual NDA & Contractor Risk Review Matrix",
+    "agent": "Julia",
+    "category": "Legal",
+    "status": "completed",
+    "input": "Provide a 4-point risk assessment checklist for agency contractor master agreements.",
+    "output": "### Legal Risk Assessment Matrix\n\n1. **IP Assignment & Work Made for Hire:** Ensure immediate vesting of all work product, prompts, code, and copy upon creation without dependency on invoice settlement.\n2. **Non-Solicitation Scope:** Limit non-solicitation strictly to clients the contractor directly serviced during the preceding 12 months, avoiding unenforceable broad geographic bans.\n3. **Limitation of Liability:** Cap aggregate contractor liability at total fees paid in the past 6 months, with explicit carve-outs for confidentiality breaches and willful misconduct.\n4. **Data Privacy & AI Input Security:** Mandate that client confidential data is not ingested into public LLM training corpuses.",
+    "createdAt": "2026-09-05T09:16:12.962Z",
+    "completedAt": "2026-09-05T09:16:30.962Z",
+    "tokensUsed": 280
+  }
+]

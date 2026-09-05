@@ -359,6 +359,76 @@
       border-color: #818cf8;
       background: rgba(99, 102, 241, 0.1);
     }
+    /* Calculator & Playground Styles */
+    .calculator-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .calc-range {
+      width: 100%;
+      height: 8px;
+      border-radius: 5px;
+      background: #252a38;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      margin: 16px 0;
+    }
+    .calc-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--accent-glow);
+      border: 2px solid white;
+    }
+    .calc-compare-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 28px;
+    }
+    @media (max-width: 768px) {
+      .calc-compare-grid { grid-template-columns: 1fr; }
+    }
+    .calc-stat-box {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .calc-stat-box.highlight {
+      border-color: var(--ok);
+      background: rgba(16, 185, 129, 0.08);
+    }
+    .agent-pill-btn {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-elevated);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .agent-pill-btn:hover {
+      border-color: #818cf8;
+      color: var(--text);
+    }
+    .agent-pill-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
   </style>
 </head>
 <body>
@@ -374,9 +444,10 @@
       <div class="nav-links">
         <a href="#how-it-works">How It Works</a>
         <a href="#agents">Agents</a>
+        <a href="#calculator">ROI Savings</a>
         <a href="#demo">Live Demo</a>
         <a href="#pricing">Pricing</a>
-        <a href="/admin" class="btn btn-secondary" style="padding: 8px 16px;">Admin Status</a>
+        <a href="/app" class="btn btn-secondary" style="padding: 8px 16px; border-color: rgba(79, 70, 229, 0.4); color: #818cf8;">Launch App (/app)</a>
         <a href="/signup" class="btn btn-primary" style="padding: 8px 16px;">Get Started</a>
       </div>
     </div>
@@ -396,6 +467,7 @@
       </p>
       <div class="cta-group">
         <a href="/signup" class="btn btn-primary" style="padding: 14px 28px; font-size: 16px;">Start free 14-day trial</a>
+        <a href="/app" class="btn btn-secondary" style="padding: 14px 28px; font-size: 16px; border-color: rgba(79, 70, 229, 0.4); color: #818cf8;">Launch Live App (/app) →</a>
         <a href="#how-it-works" class="btn btn-secondary" style="padding: 14px 28px; font-size: 16px;">See how it works</a>
       </div>
       <div class="hero-proof">
@@ -522,39 +594,127 @@
       </div>
     </section>
 
-    <!-- Interactive Live Demo -->
+    <!-- Interactive ROI Savings Calculator (vs Limova & Human Hiring) -->
+    <section id="calculator" style="padding: 64px 0;">
+      <div class="section-header">
+        <div class="badge" style="margin-bottom: 12px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3);">
+          Transparent Unit Economics
+        </div>
+        <h2>See Your Immediate Cost Savings</h2>
+        <p>Compare Linda against Limova.ai's metered fees and traditional human administrative hiring.</p>
+      </div>
+
+      <div class="calculator-card" style="max-width: 960px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h3 style="font-size: 20px; font-weight: 700;">Company Size & Workload</h3>
+            <p style="font-size: 14px; color: var(--text-muted);">How many repetitive administrative / prospecting hours does your team handle weekly?</p>
+          </div>
+          <div style="font-size: 24px; font-weight: 800; color: #818cf8; font-family: var(--mono);">
+            <span id="calc-hours-val">25</span> hrs/week
+          </div>
+        </div>
+
+        <input type="range" min="5" max="80" value="25" step="5" class="calc-range" id="calc-hours-slider" oninput="updateCalculator(this.value)">
+
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; font-family: var(--mono);">
+          <span>5 hrs (Solo operator)</span>
+          <span>25 hrs (Small agency)</span>
+          <span>50 hrs (Growth team)</span>
+          <span>80+ hrs (Multi-team)</span>
+        </div>
+
+        <div class="calc-compare-grid">
+          <!-- Traditional Human Hiring -->
+          <div class="calc-stat-box">
+            <div style="font-size: 12px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Human Staffing / VAs</div>
+            <div style="font-size: 28px; font-weight: 800; margin: 12px 0 4px; color: #f87171;" id="cost-human">$3,250<span>/mo</span></div>
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">Based on $30/hr blended VA & specialist wage + overhead.</p>
+            <div style="margin-top: 14px; font-size: 11px; color: #ef4444;">✕ 2-4 week hiring delay</div>
+            <div style="font-size: 11px; color: #ef4444;">✕ Manual supervision burden</div>
+          </div>
+
+          <!-- Limova.ai -->
+          <div class="calc-stat-box">
+            <div style="font-size: 12px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">Limova.ai</div>
+            <div style="font-size: 28px; font-weight: 800; margin: 12px 0 4px; color: #fbbf24;" id="cost-limova">$890<span>/mo</span></div>
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">€0.20/min call overages + mandatory setup and supervision.</p>
+            <div style="margin-top: 14px; font-size: 11px; color: #f59e0b;">✕ Metered surprise bills</div>
+            <div style="font-size: 11px; color: #f59e0b;">✕ Mandatory demo calls</div>
+          </div>
+
+          <!-- Linda -->
+          <div class="calc-stat-box highlight">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 6px;">
+              <span style="font-size: 12px; text-transform: uppercase; font-weight: 700; color: var(--ok); letter-spacing: 0.05em;">Linda Autonomous</span>
+              <span class="badge" style="padding: 1px 6px; font-size: 9px;">Flat Tier</span>
+            </div>
+            <div style="font-size: 28px; font-weight: 800; margin: 12px 0 4px; color: var(--ok);" id="cost-linda">$149<span>/mo</span></div>
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4;" id="linda-plan-label">Growth Plan · Unlimited executions.</p>
+            <div style="margin-top: 14px; font-size: 12px; color: var(--ok); font-weight: 700;" id="calc-savings-badge">Save $3,101/mo (95%)</div>
+            <div style="font-size: 11px; color: var(--ok);">✓ 100% self-serve in 3 min</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px; padding: 18px 24px; background: rgba(79, 70, 229, 0.08); border: 1px solid rgba(79, 70, 229, 0.2); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <div style="font-weight: 700; font-size: 15px;">Ready to capture these savings with zero human friction?</div>
+            <div style="font-size: 13px; color: var(--text-muted);">Start your 14-day un-gated free trial in under 3 minutes. No credit card required.</div>
+          </div>
+          <a href="/signup" class="btn btn-primary" style="padding: 10px 24px; font-size: 14px;">Deploy My Team Now →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Live Demo & Agent Playground -->
     <section id="demo" style="padding: 64px 0;">
       <div class="section-header">
         <div class="badge" style="margin-bottom: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
           ● Live Inference Active (gpt-5.6-luna)
         </div>
-        <h2>Test Linda Right Now</h2>
-        <p>Ask Charly, our Chief of Staff agent, how the team automates your repetitive operations.</p>
+        <h2>Live Agent Capability Playground</h2>
+        <p>Switch between all 8 autonomous agents to test capabilities or execute live test prompts right now.</p>
       </div>
 
-      <div style="max-width: 760px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
+      <!-- Agent Switcher Pills -->
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; max-width: 860px; margin-left: auto; margin-right: auto;">
+        <button class="agent-pill-btn active" id="pill-Charly" onclick="switchPlaygroundAgent('Charly')">Charly (Chief of Staff)</button>
+        <button class="agent-pill-btn" id="pill-Elio" onclick="switchPlaygroundAgent('Elio')">Elio (SDR Sales)</button>
+        <button class="agent-pill-btn" id="pill-Lou" onclick="switchPlaygroundAgent('Lou')">Lou (SEO Writer)</button>
+        <button class="agent-pill-btn" id="pill-Tom" onclick="switchPlaygroundAgent('Tom')">Tom (Phone/Inbox)</button>
+        <button class="agent-pill-btn" id="pill-John" onclick="switchPlaygroundAgent('John')">John (Marketing)</button>
+        <button class="agent-pill-btn" id="pill-Manue" onclick="switchPlaygroundAgent('Manue')">Manue (Finance)</button>
+        <button class="agent-pill-btn" id="pill-Julia" onclick="switchPlaygroundAgent('Julia')">Julia (Legal)</button>
+        <button class="agent-pill-btn" id="pill-Rony" onclick="switchPlaygroundAgent('Rony')">Rony (Recruiter)</button>
+      </div>
+
+      <div style="max-width: 780px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
         <div style="padding: 16px 20px; background: var(--surface-elevated); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #4f46e5, #9333ea); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">C</div>
+            <div id="playground-avatar" style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #4f46e5, #9333ea); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: white;">C</div>
             <div>
               <div style="font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                Charly <span style="font-size: 11px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 1px 6px; border-radius: 4px; font-weight: 600;">Chief of Staff</span>
+                <span id="playground-name">Charly</span>
+                <span id="playground-badge" style="font-size: 11px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 1px 6px; border-radius: 4px; font-weight: 600;">Chief of Staff</span>
               </div>
-              <div style="font-size: 12px; color: var(--text-muted);">Autonomous Orchestration · Available 24/7</div>
+              <div id="playground-desc" style="font-size: 12px; color: var(--text-muted);">Autonomous Orchestration · Available 24/7</div>
             </div>
           </div>
-          <span style="font-size: 12px; color: #10b981; display: flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> Ready
-          </span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 12px; color: #10b981; display: flex; align-items: center; gap: 6px;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> Ready
+            </span>
+            <a href="/app" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Open Full App →</a>
+          </div>
         </div>
 
         <div id="chat-messages" style="padding: 24px; min-height: 220px; max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
-          <div style="background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; max-width: 85%; align-self: flex-start; line-height: 1.5; font-size: 14px;">
+          <div id="playground-initial-bubble" style="background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; max-width: 85%; align-self: flex-start; line-height: 1.5; font-size: 14px;">
             👋 Hi! I'm Charly. I coordinate Linda's 8 autonomous agents. Ask me about how we handle lead qualification, social marketing, SEO, bookkeeping, or our 3-minute self-serve onboarding.
           </div>
         </div>
 
-        <div style="padding: 12px 20px; border-top: 1px solid var(--border); background: rgba(9, 10, 15, 0.4); display: flex; gap: 8px; flex-wrap: wrap;">
+        <div style="padding: 12px 20px; border-top: 1px solid var(--border); background: rgba(9, 10, 15, 0.4); display: flex; gap: 8px; flex-wrap: wrap;" id="playground-chips-container">
           <span style="font-size: 12px; color: var(--text-muted); align-self: center;">Try asking:</span>
           <button class="prompt-chip" onclick="sendPrompt('How does Linda onboard in 3 minutes without sales calls?')">3-min onboarding?</button>
           <button class="prompt-chip" onclick="sendPrompt('What does Tom do for incoming phone calls and leads?')">What does Tom do?</button>
@@ -562,8 +722,8 @@
         </div>
 
         <form id="chat-form" onsubmit="handleChatSubmit(event)" style="display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface);">
-          <input id="chat-input" type="text" placeholder="Type your question for Charly..." style="flex: 1; background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--text); font-size: 14px; outline: none;" required />
-          <button type="submit" id="chat-submit" class="btn btn-primary" style="padding: 10px 20px; font-size: 14px;">Ask Charly</button>
+          <input id="chat-input" type="text" placeholder="Type your question or task for Charly..." style="flex: 1; background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--text); font-size: 14px; outline: none;" required />
+          <button type="submit" id="chat-submit" class="btn btn-primary" style="padding: 10px 20px; font-size: 14px;">Execute Prompt</button>
         </form>
       </div>
     </section>
@@ -644,6 +804,187 @@
     </div>
   </footer>
   <script>
+    // --- ROI Calculator Logic ---
+    function updateCalculator(hoursVal) {
+      const hours = parseInt(hoursVal, 10);
+      document.getElementById('calc-hours-val').textContent = hours;
+
+      // Human cost: $30/hr * 4.33 weeks + overhead (~$200/mo)
+      const humanCost = Math.round(hours * 30 * 4.33 + 200);
+
+      // Limova cost: base ~€299 ($325) + metered minute overages ($0.25/min * 10 hrs = ~$150 + fees)
+      let limovaCost = 325 + Math.round(hours * 22);
+
+      // Linda cost: $49 for <=10h, $149 for 15-40h, $399 for 45h+
+      let lindaCost = 149;
+      let planName = 'Growth Plan · Unlimited executions';
+      if (hours <= 10) {
+        lindaCost = 49;
+        planName = 'Starter Plan · 1 seat included';
+      } else if (hours > 40) {
+        lindaCost = 399;
+        planName = 'Scale Plan · Up to 20 seats included';
+      }
+
+      const savings = humanCost - lindaCost;
+      const savingsPct = Math.round((savings / humanCost) * 100);
+
+      document.getElementById('cost-human').innerHTML = `$${humanCost.toLocaleString()}<span>/mo</span>`;
+      document.getElementById('cost-limova').innerHTML = `$${limovaCost.toLocaleString()}<span>/mo</span>`;
+      document.getElementById('cost-linda').innerHTML = `$${lindaCost}<span>/mo</span>`;
+      document.getElementById('linda-plan-label').textContent = planName;
+      document.getElementById('calc-savings-badge').textContent = `Save $${savings.toLocaleString()}/mo (${savingsPct}%)`;
+    }
+
+    // --- Playground Multi-Agent Data & Logic ---
+    let activePlaygroundAgent = 'Charly';
+
+    const PLAYGROUND_AGENTS = {
+      Charly: {
+        name: 'Charly',
+        role: 'Chief of Staff',
+        desc: 'Autonomous Orchestration · Available 24/7',
+        avatar: 'C',
+        color: 'linear-gradient(135deg, #4f46e5, #9333ea)',
+        greeting: "👋 Hi! I'm Charly, Linda's Chief of Staff. I coordinate multi-agent operations across sales, SEO, marketing, and finance. What operational workflow can I run for you?",
+        chips: [
+          'How does Linda onboard in 3 minutes without sales calls?',
+          'What does Tom do for incoming phone calls and leads?',
+          'Which plan should a 4-person team choose?'
+        ]
+      },
+      Elio: {
+        name: 'Elio',
+        role: 'SDR Sales Rep',
+        desc: 'Outbound Prospecting & Sequences',
+        avatar: 'E',
+        color: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+        greeting: "🎯 Hey! I'm Elio, your autonomous B2B SDR. I find qualified prospects, write high-converting cold email sequences, and handle objections asynchronously.",
+        chips: [
+          'Draft a 3-step cold email sequence for marketing agencies',
+          'Handle objection: "We do not have budget for new software"',
+          'List 5 high-converting ICP criteria for agency founders'
+        ]
+      },
+      Lou: {
+        name: 'Lou',
+        role: 'SEO Content Lead',
+        desc: 'Keyword Strategy & Long-Form Articles',
+        avatar: 'L',
+        color: 'linear-gradient(135deg, #10b981, #059669)',
+        greeting: "🔍 Hi! I'm Lou. I discover low-competition keyword gaps, audit technical SEO, and produce comprehensive long-form content engineered to rank.",
+        chips: [
+          'Find 5 keyword gaps comparing Linda vs Limova.ai',
+          'Outline a 2,000-word SEO guide on autonomous AI workforces',
+          'Write high-CTR meta titles for B2B workflow pages'
+        ]
+      },
+      Tom: {
+        name: 'Tom',
+        role: 'Inbound Receptionist',
+        desc: 'Voice, WhatsApp & Triage',
+        avatar: 'T',
+        color: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+        greeting: "📞 Hello! I'm Tom. I handle inbound phone and messaging triage, qualify incoming prospects, and manage after-hours support with zero human staffing.",
+        chips: [
+          'Draft an after-hours emergency call triage script',
+          'Create a 4-question inbound lead qualification flow',
+          'Write a WhatsApp greeting for high-ticket agency leads'
+        ]
+      },
+      John: {
+        name: 'John',
+        role: 'Marketing Lead',
+        desc: 'Multi-Channel Social & Campaigns',
+        avatar: 'J',
+        color: 'linear-gradient(135deg, #ec4899, #db2777)',
+        greeting: "🚀 What's up! I'm John. I write viral Twitter/X hook threads, build-in-public LinkedIn posts, and product launch newsletters that drive organic signups.",
+        chips: [
+          'Plan a 5-day LinkedIn build-in-public series on AI workforce',
+          'Draft a viral Twitter/X hook thread on agency margin leaks',
+          'Write a product launch newsletter for Linda Growth tier'
+        ]
+      },
+      Manue: {
+        name: 'Manue',
+        role: 'Finance & Runway',
+        desc: 'Cash Runway & Invoicing',
+        avatar: 'M',
+        color: 'linear-gradient(135deg, #f59e0b, #d97706)',
+        greeting: "📊 Greetings! I'm Manue. I monitor monthly cash burn, calculate runway scenarios, send invoice reminders, and flag cost anomalies.",
+        chips: [
+          'Calculate runway from $75k balance at $8.5k monthly burn',
+          'Draft a 3-stage escalatory invoice collection email sequence',
+          'Identify top 5 deductible SaaS expenses for agency tax season'
+        ]
+      },
+      Julia: {
+        name: 'Julia',
+        role: 'Legal Assistant',
+        desc: 'Contract Review & Risk',
+        avatar: 'Ju',
+        color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+        greeting: "⚖️ Hello. I'm Julia, Linda's legal assistant. I audit MSAs, draft standard NDAs, and flag aggressive indemnification and liability clauses in vendor contracts.",
+        chips: [
+          'Highlight 4 standard risk areas in agency subcontractor MSAs',
+          'Draft a mutual NDA summary for software partnership talks',
+          'Audit SaaS SLA clause for acceptable downtime terms'
+        ]
+      },
+      Rony: {
+        name: 'Rony',
+        role: 'Talent Recruiter',
+        desc: 'Applicant Screening & Scorecards',
+        avatar: 'R',
+        color: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+        greeting: "🤝 Hi there! I'm Rony. I parse candidate applications against structured rubrics, write realistic job posts, and formulate behavioral interview questions.",
+        chips: [
+          'Design a screening scorecard for a Full-Stack Node.js Engineer',
+          'Formulate 5 behavioral questions evaluating async ownership',
+          'Write a high-converting job post for Async Ops Lead'
+        ]
+      }
+    };
+
+    function switchPlaygroundAgent(agentKey) {
+      const agent = PLAYGROUND_AGENTS[agentKey];
+      if (!agent) return;
+
+      activePlaygroundAgent = agentKey;
+
+      // Update pills
+      document.querySelectorAll('.agent-pill-btn').forEach(btn => btn.classList.remove('active'));
+      const activePill = document.getElementById(`pill-${agentKey}`);
+      if (activePill) activePill.classList.add('active');
+
+      // Update Card Header
+      document.getElementById('playground-name').textContent = agent.name;
+      document.getElementById('playground-badge').textContent = agent.role;
+      document.getElementById('playground-desc').textContent = agent.desc;
+      document.getElementById('playground-avatar').textContent = agent.avatar;
+      document.getElementById('playground-avatar').style.background = agent.color;
+      document.getElementById('chat-input').placeholder = `Type your question or task for ${agent.name}...`;
+
+      // Reset chat messages with agent's greeting
+      const chatContainer = document.getElementById('chat-messages');
+      chatContainer.innerHTML = `
+        <div style="background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; max-width: 85%; align-self: flex-start; line-height: 1.5; font-size: 14px;">
+          ${agent.greeting}
+        </div>
+      `;
+
+      // Update Chips
+      const chipsContainer = document.getElementById('playground-chips-container');
+      chipsContainer.innerHTML = `<span style="font-size: 12px; color: var(--text-muted); align-self: center;">Try asking:</span>`;
+      agent.chips.forEach(chipText => {
+        const btn = document.createElement('button');
+        btn.className = 'prompt-chip';
+        btn.textContent = chipText.length > 28 ? chipText.slice(0, 26) + '...' : chipText;
+        btn.onclick = () => sendPrompt(chipText);
+        chipsContainer.appendChild(btn);
+      });
+    }
+
     async function handleChatSubmit(e) {
       if (e) e.preventDefault();
       const input = document.getElementById('chat-input');
@@ -669,7 +1010,7 @@
 
       const loadingMsg = document.createElement('div');
       loadingMsg.style.cssText = 'background: var(--surface-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; max-width: 85%; align-self: flex-start; line-height: 1.5; font-size: 14px; color: var(--text-muted);';
-      loadingMsg.innerHTML = 'Thinking...';
+      loadingMsg.innerHTML = `Executing with ${activePlaygroundAgent}...`;
       container.appendChild(loadingMsg);
       container.scrollTop = container.scrollHeight;
 
@@ -677,26 +1018,42 @@
       submitBtn.textContent = 'Thinking...';
 
       try {
-        const res = await fetch('/api/chat', {
+        const res = await fetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({
+            agent: activePlaygroundAgent,
+            title: text.slice(0, 48),
+            input: text,
+            sync: true
+          })
         });
         const data = await res.json();
-        if (res.ok && data.reply) {
-          loadingMsg.innerHTML = data.reply.replace(/
-/g, '<br/>');
+        if (res.ok && data.task && data.task.output) {
+          loadingMsg.innerHTML = `<strong style="color: #10b981; font-size: 11px; text-transform: uppercase;">✓ ${data.task.agent} Executed:</strong><br/>` + data.task.output.replace(/\n/g, '<br/>');
           loadingMsg.style.color = 'var(--text)';
         } else {
-          loadingMsg.textContent = data.error || 'Could not reach inference service.';
-          loadingMsg.style.color = '#ef4444';
+          // Fallback to /api/chat
+          const chatRes = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `[Agent: ${activePlaygroundAgent}] ${text}` })
+          });
+          const chatData = await chatRes.json();
+          if (chatRes.ok && chatData.reply) {
+            loadingMsg.innerHTML = chatData.reply.replace(/\n/g, '<br/>');
+            loadingMsg.style.color = 'var(--text)';
+          } else {
+            loadingMsg.textContent = (chatData && chatData.error) || 'Could not reach inference service.';
+            loadingMsg.style.color = '#ef4444';
+          }
         }
       } catch (err) {
         loadingMsg.textContent = 'Network error: ' + err.message;
         loadingMsg.style.color = '#ef4444';
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Ask Charly';
+        submitBtn.textContent = 'Execute Prompt';
         container.scrollTop = container.scrollHeight;
       }
     }
