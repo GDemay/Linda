@@ -1,0 +1,46 @@
+[
+  {
+    "id": "lead_1788628574787_wgwzm",
+    "name": "Sarah Connor",
+    "email": "sarah.connor@skylineops.io",
+    "company": "Skyline Ops",
+    "plan": "Growth",
+    "focusAgent": "Elio",
+    "referralSource": "reddit_community",
+    "createdAt": "2026-09-05T17:16:14.787Z",
+    "status": "active_trial"
+  },
+  {
+    "id": "lead_1788628391881_195pl",
+    "name": "Alex Rivera",
+    "email": "alex.rivera@growthagency.io",
+    "company": "Growth Agency IO",
+    "plan": "Growth",
+    "focusAgent": "Elio",
+    "referralSource": "reddit_community",
+    "createdAt": "2026-09-05T17:13:11.881Z",
+    "status": "active_trial"
+  },
+  {
+    "id": "lead_1788628325855_kdmqq",
+    "name": "Alex Rivera",
+    "email": "alex.rivera@growthagency.io",
+    "company": "Growth Agency IO",
+    "plan": "Growth",
+    "focusAgent": "Elio",
+    "referralSource": "reddit_community",
+    "createdAt": "2026-09-05T17:12:05.855Z",
+    "status": "active_trial"
+  },
+  {
+    "id": "lead_1788626501827_epon2",
+    "name": "Alex Rivera",
+    "email": "alex.rivera@growthagency.io",
+    "company": "Growth Agency IO",
+    "plan": "Growth",
+    "focusAgent": "Elio",
+    "referralSource": "reddit_community",
+    "createdAt": "2026-09-05T16:41:41.827Z",
+    "status": "active_trial"
+  }
+]
