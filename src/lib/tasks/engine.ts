@@ -26,6 +26,9 @@ export const createTaskSchema = z.object({
   /** Overrides the template title, e.g. when the dashboard shows the user's own words. */
   title: z.string().min(1).max(200).optional(),
   input: z.string().min(1).max(4000),
+  /** Starter key (LIN-153) when the task came from a dashboard empty-state
+   * starter template — attribution only, never affects execution. */
+  starter: z.string().min(1).max(80).optional(),
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
@@ -94,6 +97,11 @@ export function runTask(db: Db, raw: unknown): Task {
     },
   });
   if (isFirstTask) recordEvent(db, 'first_task_dispatched', { workspaceId, agent });
+  // LIN-153: starter launches carry their own event so activation from the
+  // empty state is measurable separately from composer-initiated tasks.
+  if (parsed.data.starter) {
+    recordEvent(db, 'starter_task_launched', { workspaceId, agent, starter: parsed.data.starter, taskId: task.id });
+  }
 
   // Metered after completion: the append-only ledger row, then cap enforcement
   // (80% notifies, 100% pauses agents) so the crossing action is the last one.

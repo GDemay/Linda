@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { STARTER_TASKS, starterTaskBody, type StarterTask } from '@/lib/tasks/starters.ts';
 import { useWorkspaceId } from '@/lib/use-workspace.ts';
 import { dashboardNudges, type UpgradeNudge } from '@/lib/billing/nudges.ts';
 import { formatDate, formatDateTime, formatTime, stripMarkup } from '@/lib/ui/format.ts';
@@ -304,6 +305,11 @@ function greeting() {
   return 'Good evening';
 }
 
+/** The URL starter (LIN-153) needs one well-formed link before it can run. */
+function isValidStarterUrl(value: string): boolean {
+  return /^https?:\/\/\S+$/.test(value);
+}
+
 function Dashboard() {
   const router = useRouter();
   // Resolves from the session when the param is absent, so a refresh or
@@ -344,6 +350,11 @@ function Dashboard() {
   const [editText, setEditText] = useState('');
   const [rememberNote, setRememberNote] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Starter-launch state (LIN-153): one click from the empty state runs the
+  // task; the URL starter needs a single link first.
+  const [starterUrl, setStarterUrl] = useState('');
+  const [launchingStarter, setLaunchingStarter] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
@@ -482,6 +493,32 @@ function Dashboard() {
     });
   }
 
+  /**
+   * One-click starter (LIN-153): the empty state's task is created and
+   * executed in a single POST, then the deliverable lands in the composer
+   * card — first value with no human in the loop.
+   */
+  function launchStarter(starter: StarterTask) {
+    const url = starter.inputMode === 'url' ? starterUrl.trim() : undefined;
+    if (starter.inputMode === 'url' && !isValidStarterUrl(url ?? '')) return;
+    return withActionError(async () => {
+      setLaunchingStarter(starter.key);
+      try {
+        const res = await api<{ task: Task }>('/tasks', {
+          body: starterTaskBody(starter, workspaceId ?? '', url),
+        });
+        setLatestTask(res.task);
+        setStarterUrl('');
+        await load();
+        show(`${res.task.title} — done.`);
+        // Land them where the result is visible without reading docs.
+        document.getElementById('composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } finally {
+        setLaunchingStarter(null);
+      }
+    });
+  }
+
   /** Deliverable edit + "Remember this correction" (LIN-53). */
   function saveTaskEdit() {
     if (!latestTask) return;
@@ -561,6 +598,12 @@ function Dashboard() {
   const connectedTools = data.connections.filter((c) => c.status === 'connected').length;
   const activeAgents = data.agents.filter((a) => a.status === 'active').length;
   const failedRuns = runs.filter((r) => r.status === 'failed');
+
+  // Guided first-task empty state (LIN-153): offered only until the first
+  // *task* exists. Deliberately not gated on runs — onboarding's automatic
+  // first workflow run (machine.ts completeOnboarding) would otherwise
+  // suppress the starters for every newly-onboarded workspace.
+  const showStarters = tasks.length === 0;
 
   // Upgrade prompt (LIN-131): shown exactly when a limit is in the way —
   // cap reached, trial ending soon / ended (read-only), or billing paused an agent.
@@ -758,6 +801,53 @@ function Dashboard() {
                 </p>
               </div>
             </div>
+
+            {/* Guided first task (LIN-153): one click, instant execution, the
+                result lands below — no docs, no human in the loop. */}
+            {showStarters && (
+              <div className="l-card" id="starters" style={{ borderColor: 'var(--border-accent)' }}>
+                <div className="l-card__header">
+                  <h3>Start here — your first result in under a minute</h3>
+                </div>
+                <div className="l-card__body l-grid l-grid--3">
+                  {STARTER_TASKS.map((s) => (
+                    <article key={s.key} className="l-card l-card--interactive l-col" style={{ gap: 'var(--space-2)', margin: 0 }}>
+                      <div>
+                        <b>{s.title}</b>
+                        <p className="l-xs l-muted" style={{ margin: '4px 0 0' }}>{s.description}</p>
+                      </div>
+                      <span className="l-spacer" />
+                      {s.inputMode === 'url' && (
+                        <input
+                          className="l-input"
+                          type="url"
+                          placeholder="https://…"
+                          aria-label="URL to summarize"
+                          value={starterUrl}
+                          onChange={(e) => setStarterUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') launchStarter(s);
+                          }}
+                        />
+                      )}
+                      <button
+                        className="l-btn l-btn--primary"
+                        disabled={
+                          launchingStarter !== null ||
+                          (s.inputMode === 'url' && !isValidStarterUrl(starterUrl.trim()))
+                        }
+                        onClick={() => launchStarter(s)}
+                      >
+                        {launchingStarter === s.key ? 'Working…' : 'Run it'}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+                <p className="l-xs l-muted" style={{ margin: '0 var(--space-2) var(--space-2)' }}>
+                  Runs instantly — you see the result right here. {persona('assistant')} picks up anything else you ask below.
+                </p>
+              </div>
+            )}
 
             {/* Approvals — the daily-use anchor opens on what needs the human. */}
             <div className="l-card" id="approvals" style={approvals.length > 0 ? { borderColor: 'var(--border-accent)' } : undefined}>
