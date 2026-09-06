@@ -1,10 +1,12 @@
 import Link from 'next/link';
-import { buildMetadata } from '@/lib/seo.ts';
+import { buildMetadata, buildLogJsonLd } from '@/lib/seo.ts';
 import { publishedBuildLog } from '@/lib/buildlog.ts';
+import { JsonLd } from '../components/JsonLd.tsx';
 
 export const metadata = buildMetadata({
   title: 'Build log — Linda',
-  description: 'Building 8 autonomous AI employees in public: real numbers, honest friction, 3x a week.',
+  description:
+    'Building 8 autonomous AI employees in public: real signups, real unit costs, honest friction — 3x a week. Every number published, including the ugly ones.',
   path: '/build',
 });
 
@@ -15,8 +17,12 @@ export default function BuildLogPage() {
   // Only entries dated today or earlier — the Mon/Wed/Fri cadence is what
   // visitors should see, not drafts staged for future dates.
   const published = publishedBuildLog();
+  const first = published[published.length - 1];
   return (
     <>
+      {/* LIN-206: Blog + BlogPosting schema so the log's claims (unit costs,
+          real funnel numbers) are attributable per post. */}
+      <JsonLd data={buildLogJsonLd(published)} />
       <nav className="topbar">
         <div className="inner">
           <Link href="/" className="brand">
@@ -41,14 +47,27 @@ export default function BuildLogPage() {
           <p className="muted">
             Building 8 autonomous AI employees in public — 3x a week, real numbers, honest friction.
           </p>
+          <p className="mono muted" style={{ fontSize: 13 }}>
+            {published.length} posts published since {first?.date ?? '—'} · feature ships are in the{' '}
+            <Link href="/changelog">changelog</Link>
+          </p>
         </header>
 
         <section className="stack">
-          {published.map((entry) => (
-            <article key={`${entry.date}-${entry.title}`} className="card stack" style={{ gap: 6 }}>
+          {published.map((entry, i) => (
+            // #post-N anchor (matches the BlogPosting URLs in the page
+            // JSON-LD) so a specific post can be cited and deep-linked.
+            <article
+              key={`${entry.date}-${entry.title}`}
+              id={`post-${i + 1}`}
+              className="card stack"
+              style={{ gap: 6 }}
+            >
               <div className="spread">
                 <h3>{entry.title}</h3>
-                <span className="mono muted">{entry.date}</span>
+                <a className="mono muted" href={`/build#post-${i + 1}`}>
+                  {entry.date}
+                </a>
               </div>
               <p className="muted">{entry.body}</p>
             </article>

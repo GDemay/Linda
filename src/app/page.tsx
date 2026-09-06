@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { buildMetadata } from '@/lib/seo.ts';
+import { buildMetadata, organizationJsonLd, productJsonLd, websiteJsonLd } from '@/lib/seo.ts';
+import { JsonLd } from './components/JsonLd.tsx';
 import { AGENT_CATALOG, AGENT_KEYS } from '@/lib/agents/catalog.ts';
 import { CONVERSION_COPY, PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
 import { PageEvent } from './components/PageEvent.tsx';
@@ -15,6 +16,10 @@ export default function Home() {
   return (
     <>
       <PageEvent name="landing_view" />
+      {/* LIN-206: site identity + product with the published tier pricing. */}
+      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={websiteJsonLd()} />
+      <JsonLd data={productJsonLd()} />
       <nav className="topbar">
         <div className="inner">
           <Link href="/" className="brand">

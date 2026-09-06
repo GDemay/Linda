@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { buildMetadata } from '@/lib/seo.ts';
+import { buildMetadata, productJsonLd } from '@/lib/seo.ts';
+import { JsonLd } from '../components/JsonLd.tsx';
 import { CONVERSION_COPY, PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
 import { PageEvent } from '../components/PageEvent.tsx';
 
@@ -15,6 +16,8 @@ export default function PricingPage() {
     <>
       {/* LIN-111: pricing funnel entry — pricing_view → signup_start → signup_complete. */}
       <PageEvent name="pricing_view" />
+      {/* LIN-206: Product/Offer with the exact tier prices rendered below. */}
+      <JsonLd data={productJsonLd()} />
       <nav className="topbar">
         <div className="inner">
           <Link href="/" className="brand">
