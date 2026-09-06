@@ -1,9 +1,10 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { useWorkspaceId } from '@/lib/use-workspace.ts';
 import {
   ACTIVATION_RETRIES,
   ACTIVATION_RETRY_MS,
@@ -45,9 +46,11 @@ export default function UpgradePage() {
 }
 
 function Upgrade() {
-  const router = useRouter();
   const params = useSearchParams();
-  const workspaceId = params.get('workspace');
+  // Resolves from the session when the param is absent, so a refresh or
+  // deep link of bare /dashboard/upgrade keeps a valid session (LIN-150) —
+  // this page is where a customer lands right after paying.
+  const workspaceId = useWorkspaceId();
   const checkoutState = params.get('checkout'); // 'success' | 'cancelled'
 
   const [overview, setOverview] = useState<BillingOverview | null>(null);
@@ -61,10 +64,7 @@ function Upgrade() {
   const expectedPlan = checkoutState === 'success' ? params.get('plan') : null;
 
   useEffect(() => {
-    if (!workspaceId) {
-      router.replace('/login');
-      return;
-    }
+    if (!workspaceId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -92,7 +92,7 @@ function Upgrade() {
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, checkoutState, expectedPlan, router]);
+  }, [workspaceId, checkoutState, expectedPlan]);
 
   // Once the plan is genuinely live, show the purchase as a receipt —
   // proof the ledger recorded it, never a substitute for the gate above.
