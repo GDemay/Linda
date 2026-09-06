@@ -3,11 +3,15 @@
 // LIN-118: the Journey Spec state-switcher is an internal QA harness and must never
 // render for customers. Hidden in production builds unless explicitly enabled via
 // NEXT_PUBLIC_JOURNEY_SPEC=1 (e.g. for a QA pass); always available in dev.
-// NODE_ENV is inlined by the compiler, so in production builds the guard is a
-// constant and the toolbar is dead-code eliminated out of the client bundle
-// (verified: no "Journey Spec" string in any production chunk).
-export const journeySpecEnabled =
+// The guard is kept in a module-local const: every operand is inlined by the
+// compiler (NODE_ENV always, the flag via the next.config env default), so in a
+// production build it folds to a literal `false` that terser propagates — the
+// toolbar is dead-code eliminated out of the client bundle entirely, not just
+// gated at runtime.
+const harnessOn =
   process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_JOURNEY_SPEC === '1';
+
+export const journeySpecEnabled = harnessOn;
 
 export type JourneyState = 'live' | 'empty' | 'loading' | 'error' | 'destructive-confirm' | 'success';
 
@@ -18,7 +22,7 @@ interface StateBarProps {
 }
 
 export function StateBar({ currentState, onStateChange, pageName }: StateBarProps) {
-  if (!journeySpecEnabled) return null;
+  if (!harnessOn) return null;
 
   const states: { id: JourneyState; label: string }[] = [
     { id: 'live', label: 'Live' },
