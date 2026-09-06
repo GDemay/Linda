@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
-import { formatDate, formatDateTime, formatTime } from '@/lib/ui/format.ts';
+import { formatDate, formatDateTime, formatTime, stripMarkup } from '@/lib/ui/format.ts';
 import { MemoryPanel, type Memory } from '@/app/components/MemoryPanel.tsx';
 
 type Overview = {
@@ -867,7 +867,10 @@ function Dashboard() {
                         </div>
                       ) : (
                         <>
-                          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{latestTask.output}</pre>
+                          {/* Display-only: agent markup is stripped so tags never
+                              sit in the visible text (LIN-94 bug class). The
+                              editor below still gets the raw output. */}
+                          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{stripMarkup(latestTask.output)}</pre>
                           <p className="l-xs l-muted l-num" style={{ margin: 0 }}>{latestTask.tokensUsed} tokens used</p>
                           <div>
                             <button

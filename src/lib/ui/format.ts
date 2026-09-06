@@ -66,3 +66,17 @@ export function formatCost(dollars: unknown): string {
   if (typeof dollars !== 'number' || !Number.isFinite(dollars) || dollars < 0) return FALLBACK;
   return `$${dollars < 0.01 ? dollars.toFixed(4) : dollars.toFixed(2)}`;
 }
+
+// Agent output is plain text, but agents occasionally emit markup (the
+// Gamma-export class caught by the LIN-94 gate: `<i class="gamma-class-name">`
+// or a hostile `<img onerror>`). React already escapes it — this is about
+// *display*: the tags must not sit in the visible text. We strip well-formed
+// tags and keep the human-readable words around them. A lone "<" that isn't
+// part of a tag shape ("5 < 10") is left alone.
+const HTML_TAG = /<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?\/?>/gi;
+
+/** Strips HTML-ish tags from agent output for display; keeps the words. */
+export function stripMarkup(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value.replace(HTML_TAG, '');
+}
