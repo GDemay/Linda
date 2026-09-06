@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { signup, normalizeReferralSource } from '../src/lib/auth/service.ts';
+import { signup, normalizeReferralSource, utmReferralTag } from '../src/lib/auth/service.ts';
 import { runTask } from '../src/lib/tasks/engine.ts';
 import { eventStats, recordEvent } from '../src/lib/analytics/events.ts';
 import { listLeads, leadStatsDetail } from '../src/lib/analytics/leads.ts';
@@ -94,5 +94,71 @@ describe('LIN-111 funnel instrumentation', () => {
     recordEvent(d, 'signup_complete');
     const names = eventStats(d).map((s) => s.name);
     expect(names).toEqual(expect.arrayContaining(['pricing_view', 'signup_start', 'signup_complete']));
+  });
+});
+
+/**
+ * LIN-157: utm campaign attribution. Campaign links
+ * (/signup?utm_source=github&utm_medium=readme&utm_campaign=lin141) compose
+ * into a `utm:source/medium/campaign` referral tag, and events carrying a
+ * tag get a byCampaign breakdown in /api/stats so the LIN-141 sprint's
+ * per-campaign signups are countable.
+ */
+describe('LIN-157 utm campaign attribution', () => {
+  it('composes utm params into a normalized referral tag', () => {
+    expect(
+      utmReferralTag({ source: 'github', medium: 'readme', campaign: 'lin141' }),
+    ).toBe('utm:github/readme/lin141');
+    // Case/space noise normalizes away, same as ref= tags.
+    expect(
+      utmReferralTag({ source: ' Reddit ', medium: 'Community Post', campaign: 'LIN132' }),
+    ).toBe('utm:reddit/community_post/lin132');
+    // Missing pieces keep their place with an explicit 'unknown'.
+    expect(utmReferralTag({ source: 'github', campaign: 'lin141' })).toBe('utm:github/unknown/lin141');
+    // No source and no campaign → no tag; organic signups stay untagged.
+    expect(utmReferralTag({ medium: 'readme' })).toBeNull();
+    expect(utmReferralTag({})).toBeNull();
+  });
+
+  it('breaks tagged signup events down by campaign', () => {
+    const d = db();
+    const funnel = (workspaceId: string, referralSource: string | null) => ({
+      workspaceId,
+      audience: 'external',
+      referralSource,
+    });
+    recordEvent(d, 'signup_success', funnel('ws-1', 'utm:github/readme/lin141'));
+    recordEvent(d, 'signup_success', funnel('ws-2', 'utm:github/readme/lin141'));
+    recordEvent(d, 'signup_success', funnel('ws-3', 'reddit_community'));
+    // Untagged and null tags must not appear as a bucket.
+    recordEvent(d, 'signup_success', funnel('ws-4', null));
+
+    const success = eventStats(d).find((s) => s.name === 'signup_success');
+    expect(success!.byCampaign).toEqual({
+      'utm:github/readme/lin141': 2,
+      reddit_community: 1,
+    });
+
+    // Untagged events carry no byCampaign at all.
+    recordEvent(d, 'signup_start');
+    const start = eventStats(d).find((s) => s.name === 'signup_start');
+    expect(start!.byCampaign).toBeUndefined();
+  });
+
+  it('persists a utm-composed tag on the user like a ref= tag', async () => {
+    const d = db();
+    await signup(d, {
+      email: 'dev@northglenn.dev',
+      name: 'Dev',
+      password: VALID_PASSWORD,
+      workspaceName: 'Northglenn',
+      referralSource: utmReferralTag({
+        source: 'github',
+        medium: 'readme',
+        campaign: 'lin141',
+      }) ?? undefined,
+    });
+    const lead = listLeads(d).find((l) => l.email === 'dev@northglenn.dev');
+    expect(lead?.referralSource).toBe('utm:github/readme/lin141');
   });
 });

@@ -81,6 +81,14 @@ export type EventCount = {
    * workspaceId.
    */
   byAudience?: EventAudienceSplit;
+  /**
+   * LIN-157: signup attribution keyed by the referral tag the event carried —
+   * `utm:source/medium/campaign` for utm campaign links (e.g.
+   * utm:github/readme/lin141) or a plain `ref=` tag (e.g. reddit_community).
+   * Present only when at least one row of the event carries a tag, so
+   * campaigns are countable in /api/stats without another endpoint.
+   */
+  byCampaign?: Record<string, number>;
 };
 
 /** First (earliest-created) owner email per workspace — the audience key. */
@@ -128,6 +136,33 @@ function audienceSplits(db: Db): Map<string, EventAudienceSplit> {
   return splits;
 }
 
+/**
+ * Per-name referral-tag breakdown (LIN-157): rows whose data JSON carries a
+ * non-null referralSource (as signup_success/signup_complete do), grouped by
+ * tag value so utm campaigns and ref= channels are countable per event.
+ */
+function campaignSplits(db: Db): Map<string, Record<string, number>> {
+  const rows = db
+    .prepare(`SELECT name, data FROM analytics_events WHERE data LIKE '%"referralSource"%'`)
+    .all() as { name: string; data: string }[];
+  if (rows.length === 0) return new Map();
+
+  const splits = new Map<string, Record<string, number>>();
+  for (const r of rows) {
+    let tag: string | undefined;
+    try {
+      tag = (JSON.parse(r.data) as { referralSource?: string | null })?.referralSource ?? undefined;
+    } catch {
+      tag = undefined;
+    }
+    if (!tag) continue;
+    const counts = splits.get(r.name) ?? {};
+    counts[tag] = (counts[tag] ?? 0) + 1;
+    splits.set(r.name, counts);
+  }
+  return splits;
+}
+
 export function eventStats(db: Db): EventCount[] {
   const rows = db
     .prepare(
@@ -136,10 +171,13 @@ export function eventStats(db: Db): EventCount[] {
     )
     .all() as { name: string; n: number; last_at: string | null }[];
   const splits = audienceSplits(db);
+  const campaigns = campaignSplits(db);
   return rows.map((r) => {
     const entry: EventCount = { name: r.name as EventName, count: Number(r.n), lastAt: r.last_at };
     const split = splits.get(r.name);
     if (split) entry.byAudience = split;
+    const campaign = campaigns.get(r.name);
+    if (campaign) entry.byCampaign = campaign;
     return entry;
   });
 }

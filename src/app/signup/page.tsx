@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { utmReferralTag } from '@/lib/auth/service.ts';
 import { CONVERSION_COPY, PRICING_COMMON } from '@/lib/pricing.ts';
 import { PageEvent } from '../components/PageEvent.tsx';
 import { SignupForm } from './SignupForm.tsx';
@@ -42,12 +43,17 @@ const STEPS: { n: string; title: string; body: string }[] = [
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string }>;
 }) {
   // LIN-111: the signup channel tag (e.g. /signup?ref=reddit_community) is
   // read server-side — SignupForm must never call useSearchParams — and
   // flows into the signup POST, where the API persists it on the user.
-  const { ref } = await searchParams;
+  // LIN-157: campaign links carry utm_* params instead of a ref tag; compose
+  // them into `utm:source/medium/campaign` so the campaign is attributable.
+  // An explicit ref= tag wins when both are present.
+  const { ref, utm_source, utm_medium, utm_campaign } = await searchParams;
+  const referralSource =
+    ref ?? utmReferralTag({ source: utm_source, medium: utm_medium, campaign: utm_campaign });
   return (
     <>
       <PageEvent name="signup_view" />
@@ -81,7 +87,7 @@ export default async function SignupPage({
               </p>
             </header>
 
-            <SignupForm referralSource={ref ?? null} />
+            <SignupForm referralSource={referralSource} />
 
             <p className="muted" style={{ fontSize: 12, margin: 0 }}>
               By continuing you agree to the{' '}

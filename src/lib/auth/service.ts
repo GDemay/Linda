@@ -39,6 +39,27 @@ export function normalizeReferralSource(raw: string | undefined | null): string 
   return s ? s.slice(0, 64) : null;
 }
 
+/**
+ * LIN-157: compose utm query params from a campaign link
+ * (`/signup?utm_source=github&utm_medium=readme&utm_campaign=lin141`) into a
+ * referral tag like `utm:github/readme/lin141`, so per-campaign signup
+ * attribution is measurable in /api/stats (byCampaign). Null when neither
+ * source nor campaign is present — organic signups stay untagged instead of
+ * being mislabeled.
+ */
+export function utmReferralTag(utm: {
+  source?: string | null;
+  medium?: string | null;
+  campaign?: string | null;
+}): string | null {
+  const clean = (v: string | null | undefined) => normalizeReferralSource(v ?? '');
+  const source = clean(utm.source);
+  const medium = clean(utm.medium);
+  const campaign = clean(utm.campaign);
+  if (!source && !campaign) return null;
+  return normalizeReferralSource(`utm:${source || 'unknown'}/${medium || 'unknown'}/${campaign || 'unknown'}`);
+}
+
 export type SignupResult =
   | { created: true; user: User; workspace: Workspace; token: string; expiresAt: string }
   /** Idempotent re-signup (LIN-67 fix #7): no new lead, no session — a sign-in link is emailed instead. */
