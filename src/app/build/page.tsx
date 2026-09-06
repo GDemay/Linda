@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo.ts';
-import { BUILD_LOG } from '@/lib/buildlog.ts';
+import { publishedBuildLog } from '@/lib/buildlog.ts';
 
 export const metadata = buildMetadata({
   title: 'Build log — Linda',
@@ -8,7 +8,13 @@ export const metadata = buildMetadata({
   path: '/build',
 });
 
+// Re-render hourly so dated entries go live on their own date without a deploy.
+export const revalidate = 3600;
+
 export default function BuildLogPage() {
+  // Only entries dated today or earlier — the Mon/Wed/Fri cadence is what
+  // visitors should see, not drafts staged for future dates.
+  const published = publishedBuildLog();
   return (
     <>
       <nav className="topbar">
@@ -38,7 +44,7 @@ export default function BuildLogPage() {
         </header>
 
         <section className="stack">
-          {BUILD_LOG.map((entry) => (
+          {published.map((entry) => (
             <article key={`${entry.date}-${entry.title}`} className="card stack" style={{ gap: 6 }}>
               <div className="spread">
                 <h3>{entry.title}</h3>

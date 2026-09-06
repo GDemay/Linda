@@ -10,6 +10,21 @@ export type BuildLogEntry = {
   body: string;
 };
 
+/** UTC calendar date ("2026-09-06") — build-log entry dates are UTC days. */
+export function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Entries dated today or earlier. Entries are drafted ahead for the Mon/Wed/Fri
+ * cadence, so the page must only show what is actually published — leaking a
+ * future-dated post breaks the "3x a week, live" promise the log makes.
+ */
+export function publishedBuildLog(): BuildLogEntry[] {
+  const today = todayUtc();
+  return BUILD_LOG.filter((entry) => entry.date <= today);
+}
+
 export const BUILD_LOG: BuildLogEntry[] = [
   {
     date: '2026-09-18',
