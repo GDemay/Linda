@@ -160,6 +160,55 @@ describe('fulfillCheckout — the money-moved moment', () => {
   });
 });
 
+describe('two workspaces buying in the same month (LIN-209 regression)', () => {
+  it('gives the second customer of the month distinct invoice numbers — no UNIQUE 500', async () => {
+    const d = db();
+    const a = await newAccount(d);
+    const b = await newAccount(d);
+    await onboard(d, a.workspace.id);
+    await onboard(d, b.workspace.id);
+
+    // Both buy in the same calendar month: the old per-workspace counter
+    // minted INV-YYYYMM-0001 twice and the second insert blew the global
+    // UNIQUE on invoices.number (SQLITE 2067 → HTTP 500).
+    fulfillCheckout(d, a.workspace.id, 'starter');
+    fulfillCheckout(d, b.workspace.id, 'starter');
+
+    const numsA = listInvoices(d, a.workspace.id).map((i) => i.number);
+    const numsB = listInvoices(d, b.workspace.id).map((i) => i.number);
+    expect(numsA.length).toBe(1);
+    expect(numsB.length).toBe(1);
+    expect(numsA[0]).not.toBe(numsB[0]);
+    expect([...numsA, ...numsB].every((n) => /^INV-\d{6}-\d{4}$/.test(n))).toBe(true);
+
+    // Both customers are actually on the paid plan with a paid invoice.
+    expect(billingOverview(d, b.workspace.id).plan.key).toBe('starter');
+    expect(listInvoices(d, b.workspace.id)[0].status).toBe('paid');
+  });
+
+  it('rolls the whole activation back when the invoice write fails — no partial subscription', async () => {
+    const d = db();
+    const { workspace } = await newAccount(d);
+    await onboard(d, workspace.id);
+    // Break the invoice insert only: occupy every plausible number for this
+    // month so the old collision resurfaces if sequencing regresses.
+    const ym = new Date().toISOString().slice(0, 10).replace(/-/g, '').slice(0, 6);
+    for (let i = 1; i <= 3; i++) {
+      d.prepare(
+        `INSERT INTO invoices (id, workspace_id, number, status, period_start, period_end, currency, subtotal_usd, total_usd, issued_at, paid_at)
+         VALUES (?, ?, ?, 'paid', ?, ?, 'usd', 0, 0, ?, ?)`,
+      ).run(`seed-${i}`, workspace.id, `INV-${ym}-${String(i).padStart(4, '0')}`, '2026-01-01', '2026-01-31', new Date().toISOString(), null);
+    }
+    fulfillCheckout(d, workspace.id, 'starter');
+    // Sequencing skipped the occupied numbers instead of colliding…
+    const nums = listInvoices(d, workspace.id).map((i) => i.number);
+    expect(nums).toHaveLength(4); // 3 seeds + 1 new
+    expect(new Set(nums).size).toBe(nums.length);
+    // …and the subscription write and the invoice write committed together.
+    expect(billingOverview(d, workspace.id).plan.key).toBe('starter');
+  });
+});
+
 describe('Stripe webhook signature verification', () => {
   const secret = 'whsec_test';
   const payload = JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed' });

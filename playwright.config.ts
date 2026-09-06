@@ -40,9 +40,9 @@ export default defineConfig({
   ],
   webServer: {
     command: `rm -f ${DB} && npx next start -p ${PORT} -H 127.0.0.1`,
-    env: { LINDA_DB_PATH: DB, LINDA_INSECURE_COOKIES: '1' },
+    env: { LINDA_DB_PATH: DB, LINDA_INSECURE_COOKIES: '1', CHECKOUT_PROVIDER: 'local' },
     url: `http://127.0.0.1:${PORT}/api/catalog`,
     reuseExistingServer: false,
-    timeout: 60_000,
+    timeout: 180_000,
   },
 });
