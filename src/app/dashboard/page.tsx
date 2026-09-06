@@ -597,9 +597,11 @@ function Dashboard() {
   const activeAgents = data.agents.filter((a) => a.status === 'active').length;
   const failedRuns = runs.filter((r) => r.status === 'failed');
 
-  // Guided first-task empty state (LIN-153): offered only until the workspace
-  // has anything to show — the first task or run replaces it for good.
-  const showStarters = tasks.length === 0 && runs.length === 0;
+  // Guided first-task empty state (LIN-153): offered only until the first
+  // *task* exists. Deliberately not gated on runs — onboarding's automatic
+  // first workflow run (machine.ts completeOnboarding) would otherwise
+  // suppress the starters for every newly-onboarded workspace.
+  const showStarters = tasks.length === 0;
 
   // Upgrade prompt (LIN-131): shown exactly when a limit is in the way —
   // cap reached, trial ending soon / ended (read-only), or billing paused an agent.
