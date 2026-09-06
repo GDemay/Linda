@@ -67,6 +67,51 @@ export async function sendEmail(email: OutboundEmail): Promise<SendResult> {
 }
 
 /**
+ * The audit's dark/indigo visual system as a reusable one-CTA layout, so
+ * every transactional email (magic link, LIN-203 lifecycle nudges) renders
+ * in the same shell. The link is repeated as plain text below the button —
+ * email clients that strip buttons must still leave a usable path.
+ */
+export function emailShell(input: {
+  heading: string;
+  paragraphs: string[];
+  cta: { label: string; url: string };
+  footnote?: string[];
+}): { html: string; text: string } {
+  const paras = input.paragraphs
+    .map(
+      (p) =>
+        `<tr><td style="color:#9aa3b5;font-size:15px;line-height:1.6;padding-bottom:18px;">${p}</td></tr>`,
+    )
+    .join('');
+  const notes = (input.footnote ?? [])
+    .map((n) => `<tr><td style="color:#6b7385;font-size:13px;line-height:1.6;padding-top:4px;">${n}</td></tr>`)
+    .join('');
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:32px 16px;background:#0b0d12;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table role="presentation" width="100%" style="max-width:480px;background:#12151d;border:1px solid #232838;border-radius:14px;padding:36px;">
+      <tr><td style="color:#e7eaf2;font-size:20px;font-weight:700;padding-bottom:6px;">Linda</td></tr>
+      <tr><td style="color:#e7eaf2;font-size:22px;font-weight:600;line-height:1.35;padding:10px 0 12px;">${input.heading}</td></tr>
+      ${paras}
+      <tr><td align="center" style="padding-bottom:26px;">
+        <a href="${input.cta.url}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;padding:14px 34px;border-radius:10px;">${input.cta.label} &rarr;</a>
+      </td></tr>
+      <tr><td style="color:#6b7385;font-size:13px;line-height:1.6;">
+        If the button doesn't work, paste this link into your browser:<br>
+        <a href="${input.cta.url}" style="color:#818cf8;word-break:break-all;">${input.cta.url}</a>
+      </td></tr>
+      ${notes}
+    </table>
+  </td></tr></table>
+</body></html>`;
+  const text = `${input.heading}\n\n${input.paragraphs.join('\n\n')}\n\n${input.cta.label}: ${input.cta.url}${
+    input.footnote?.length ? `\n\n${input.footnote.join('\n')}` : ''
+  }`;
+  return { html, text };
+}
+
+/**
  * One-CTA email body in the audit's dark/indigo visual system (#4f46e5
  * button, white text). Subject and copy come from LIN-49 fix #1.
  */

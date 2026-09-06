@@ -269,6 +269,24 @@ export function listWorkspacesForUser(db: Db, userId: string): (Workspace & { ro
   return rows.map((r) => ({ ...toWorkspace(r), role: r.role as Role }));
 }
 
+/** The first (earliest-membership) owner — the address lifecycle email goes to (LIN-203). */
+export function findWorkspaceOwner(db: Db, workspaceId: string): User | null {
+  const r = db
+    .prepare(
+      `SELECT u.* FROM memberships m JOIN users u ON u.id = m.user_id
+       WHERE m.workspace_id = ? AND m.role = 'owner' ORDER BY m.created_at ASC LIMIT 1`,
+    )
+    .get(workspaceId) as Row | undefined;
+  return r ? toUser(r) : null;
+}
+
+/** Workspaces whose onboarding state machine has not reached 'done' (LIN-203 day-2 nudge scan). */
+export function listWorkspacesIncompleteOnboarding(db: Db): Workspace[] {
+  return (db
+    .prepare("SELECT * FROM workspaces WHERE onboarding_step != 'done'")
+    .all() as Row[]).map(toWorkspace);
+}
+
 // --------------------------------------------------------- company profile
 
 export function upsertCompanyProfile(

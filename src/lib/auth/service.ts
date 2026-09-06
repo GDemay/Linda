@@ -4,6 +4,7 @@ import { transaction } from '../db/index.ts';
 import { slugify } from '../ids.ts';
 import { checkPasswordStrength, hashPassword, verifyPassword } from './password.ts';
 import { magicLinkEmail, sendEmail } from '../email.ts';
+import { sendWelcomeEmail } from '../onboarding/lifecycle.ts';
 import {
   addMembership,
   consumeMagicLink,
@@ -200,6 +201,14 @@ export async function signup(db: Db, raw: unknown, baseUrl = 'http://localhost:3
   // The way-back email (LIN-49 fix #1). Failures are logged, never fatal:
   // the session cookie already got the user in.
   await sendMagicLink(db, result.user, result.workspace.name, baseUrl, true);
+
+  // Welcome nudge (LIN-203): one "next step to first value" CTA. Same
+  // contract as the magic link — never fatal to signup.
+  try {
+    await sendWelcomeEmail(db, result.workspace, result.user, baseUrl);
+  } catch (err) {
+    console.error('[linda] welcome email failed', err);
+  }
   return { created: true, ...result };
 }
 

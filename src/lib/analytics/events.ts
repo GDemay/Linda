@@ -45,6 +45,10 @@ export const EVENT_NAMES = [
   // reaches 'done'. Both carry { workspaceId }.
   'onboarding_started',
   'onboarding_completed',
+  // LIN-203 onboarding lifecycle emails (welcome / day-2 / day-10 expiry),
+  // carrying { workspaceId, kind, via, dryRun } so real vs dry-run volume is
+  // separable in the funnel events.
+  'lifecycle_email_sent',
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];

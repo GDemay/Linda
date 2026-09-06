@@ -10,10 +10,15 @@
 import { getDb } from '../src/lib/db/index.ts';
 import { expireDueTrials } from '../src/lib/billing/entitlements.ts';
 import { purgeExpiredSessions } from '../src/lib/repos/accounts.ts';
+import { dispatchDueLifecycleEmails } from '../src/lib/onboarding/lifecycle.ts';
 import { drainQueue } from '../src/lib/workflows/runner.ts';
 
 const INTERVAL_MS = Number(process.env.LINDA_WORKER_INTERVAL_MS ?? 5000);
 const BATCH = Number(process.env.LINDA_WORKER_BATCH ?? 25);
+// Lifecycle nudges (LIN-203): links must point at the public app; set
+// LIFECYCLE_EMAIL_DRY_RUN=1 to log instead of send (staging/prove-out).
+const APP_URL = process.env.APP_ORIGIN ?? 'http://localhost:3000';
+const LIFECYCLE_DRY_RUN = process.env.LIFECYCLE_EMAIL_DRY_RUN === '1';
 
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
@@ -33,6 +38,18 @@ async function main() {
       // AC9: expired trials downgrade to free automatically, no human action.
       const expired = expireDueTrials(db);
       if (expired.length) console.log(`[worker] expired ${expired.length} trial(s)`);
+
+      // LIN-203: onboarding lifecycle nudges (day-2 stuck, day-10 expiry).
+      // One-shot per workspace+kind, so an empty result is the steady state.
+      const lifecycle = await dispatchDueLifecycleEmails(db, { appUrl: APP_URL, dryRun: LIFECYCLE_DRY_RUN });
+      if (lifecycle.length) {
+        const tally = lifecycle.reduce<Record<string, number>>((acc, o) => {
+          const key = `${o.kind}:${o.status}`;
+          acc[key] = (acc[key] ?? 0) + 1;
+          return acc;
+        }, {});
+        console.log(`[worker] lifecycle emails${LIFECYCLE_DRY_RUN ? ' (dry run)' : ''}`, tally);
+      }
 
       const outcomes = await drainQueue(db, BATCH);
       if (outcomes.length) {

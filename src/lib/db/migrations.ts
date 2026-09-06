@@ -382,6 +382,33 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE users ADD COLUMN referral_source TEXT;
     `,
   },
+  {
+    // LIN-203: onboarding lifecycle emails (welcome, day-2 nudge, day-10
+    // trial-expiry nudge). One row per (workspace, kind) makes each nudge
+    // one-shot — the worker can rescan every tick without re-sending.
+    id: 9,
+    name: 'lifecycle_emails',
+    up: `
+      CREATE TABLE lifecycle_emails (
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        kind         TEXT NOT NULL CHECK (kind IN ('welcome','day2_nudge','trial_expiry_nudge')),
+        via          TEXT NOT NULL,  -- 'resend' | 'agentmail' | 'none' | 'dry_run'
+        sent_at      TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, kind)
+      );
+
+      -- Small per-workspace key/value store. Today it backs the lifecycle
+      -- email kill switch ('lifecycle_emails_disabled' = '1'); a workspace
+      -- that opts out of transactional nudges gets none, ever.
+      CREATE TABLE workspace_settings (
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        key          TEXT NOT NULL,
+        value        TEXT NOT NULL,
+        updated_at   TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, key)
+      );
+    `,
+  },
 ];
 type MigrateDb = {
   exec(sql: string): void;
