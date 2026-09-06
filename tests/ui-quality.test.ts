@@ -21,6 +21,7 @@ import {
   formatDateTime,
   formatDurationMs,
   formatTime,
+  stripMarkup,
 } from '../src/lib/ui/format.ts';
 
 const BAD_LEAKS = ['Invalid Date', 'NaN', 'undefined', 'null'] as const;
@@ -97,6 +98,21 @@ describe('formatter invariants (no raw values ever reach the UI)', () => {
     expect(formatCost(12.5)).toBe('$12.50');
     for (const input of [undefined, null, NaN, -1, 'x'] as unknown[]) {
       expect(formatCost(input)).toBe(FALLBACK);
+    }
+  });
+
+  it('stripMarkup removes agent-emitted tags but keeps the words (LIN-94 class)', () => {
+    expect(stripMarkup('<i class="gamma-class-name"></i><span class="gamma-class-name">Q3 highlights</span>')).toBe(
+      'Q3 highlights',
+    );
+    expect(stripMarkup('<img src="https://evil.example/x.png" onerror="window.__pwned = 1">')).toBe('');
+    expect(stripMarkup('Executive Summary\nQ3 highlights')).toBe('Executive Summary\nQ3 highlights');
+  });
+
+  it('stripMarkup leaves plain text that only looks angle-bracketed alone', () => {
+    expect(stripMarkup('keep 5 < 10 and x<3')).toBe('keep 5 < 10 and x<3');
+    for (const input of [undefined, null, 42] as unknown[]) {
+      expect(stripMarkup(input)).toBe('');
     }
   });
 });
