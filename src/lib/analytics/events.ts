@@ -2,6 +2,7 @@ import type { Db } from '../db/index.ts';
 import { nowIso } from '../db/index.ts';
 import { id } from '../ids.ts';
 import { leadAudience } from './leads.ts';
+import { captureFunnelEvent } from '../observability/posthog.ts';
 
 /**
  * Zero-cost cookieless funnel events (LIN-67 / audit fix #6). Events are
@@ -38,6 +39,12 @@ export const EVENT_NAMES = [
   // per surface in the funnel events.
   'upgrade_nudge_view',
   'upgrade_nudge_click',
+  // Activation funnel (LIN-167): onboarding_started fires on a workspace's
+  // first company-profile save (first real onboarding action, not a page
+  // view); onboarding_completed fires when the onboarding state machine
+  // reaches 'done'. Both carry { workspaceId }.
+  'onboarding_started',
+  'onboarding_completed',
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];
@@ -60,6 +67,9 @@ export function recordEvent(db: Db, name: EventName, data: Record<string, unknow
     JSON.stringify(data),
     nowIso(),
   );
+  // SQLite stays the system of record; PostHog is an env-gated mirror
+  // (LIN-167) and a no-op until POSTHOG_KEY/POSTHOG_HOST are set.
+  captureFunnelEvent(name, data);
 }
 
 export type EventAudienceSplit = {
