@@ -139,16 +139,16 @@ describe('static anti-pattern scan of src/app', () => {
     expect(offenders.map((f) => f.split('/src/app/')[1])).toEqual([]);
   });
 
-  it('QA harness toolbar is hard-gated behind NEXT_PUBLIC_QA_HARNESS (LIN-118)', () => {
+  it('QA harness toolbar is hard-gated out of production (LIN-118)', () => {
     // The Journey Spec state-switcher is internal QA tooling. It once shipped
     // to production on /login and /onboarding; this gate makes sure the
     // early-return in StateBar never gets removed.
     const stateBar = readFileSync(join(import.meta.dirname, '..', 'src', 'app', 'components', 'StateBar.tsx'), 'utf8');
-    expect(stateBar, 'StateBar must keep the QA_HARNESS_ENABLED flag export').toContain(
-      'process.env.NEXT_PUBLIC_QA_HARNESS',
+    expect(stateBar, 'StateBar must keep the journeySpecEnabled export').toContain(
+      "process.env.NODE_ENV !== 'production'",
     );
-    expect(stateBar, 'StateBar must render nothing when the flag is off').toMatch(
-      /if\s*\(!QA_HARNESS_ENABLED\)\s*return null/,
+    expect(stateBar, 'StateBar must render nothing when the harness is disabled').toMatch(
+      /if\s*\(!journeySpecEnabled\)\s*return null/,
     );
   });
 

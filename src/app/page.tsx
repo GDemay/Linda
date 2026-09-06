@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo.ts';
 import { AGENT_CATALOG, AGENT_KEYS } from '@/lib/agents/catalog.ts';
-import { PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
+import { CONVERSION_COPY, PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
 import { PageEvent } from './components/PageEvent.tsx';
 
 export const metadata = buildMetadata({
@@ -41,17 +41,20 @@ export default function Home() {
           <h1 style={{ fontSize: 42, maxWidth: 840, lineHeight: 1.15, margin: '8px 0' }}>
             Agents that onboard themselves.
           </h1>
-          <p className="muted" style={{ fontSize: 18, maxWidth: 680, lineHeight: 1.6 }}>
-            Linda is an AI agent workforce for the work that repeats — prospecting, content, SEO, support,
-            screening, and admin. You sign up, connect your tools, and it starts.
-            There&apos;s no setup call, because there&apos;s nothing for us to set up.
+          <p style={{ fontSize: 18, maxWidth: 680, lineHeight: 1.6, margin: 0 }}>
+            {CONVERSION_COPY.jtbdLine}. Linda is an AI agent workforce for the work that repeats —
+            prospecting, content, SEO, support, screening, and admin. You sign up, connect your tools,
+            and it starts. There&apos;s no setup call, because there&apos;s nothing for us to set up.
           </p>
-          <div className="row" style={{ marginTop: 12, justifyContent: 'center' }}>
+          <div className="row" style={{ marginTop: 12, justifyContent: 'center', alignItems: 'center' }}>
             <Link href="/signup">
               <button className="primary" style={{ padding: '12px 28px', fontSize: 16 }}>
                 Start free 14-day trial
               </button>
             </Link>
+            <span style={{ fontSize: 15 }}>
+              <b>{CONVERSION_COPY.flatPriceAnchor}</b>
+            </span>
             <Link href="/pricing">
               <button style={{ padding: '12px 24px', fontSize: 16 }}>
                 View transparent pricing
@@ -60,7 +63,7 @@ export default function Home() {
           </div>
           <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>
             <span className="muted" style={{ fontSize: 14 }}>
-              ✓ No credit card required &nbsp;·&nbsp; ✓ No demo booking &nbsp;·&nbsp; ✓ No waiting list
+              {CONVERSION_COPY.riskReversalLine}
             </span>
           </div>
         </header>

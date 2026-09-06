@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { PRICING_COMMON } from '@/lib/pricing.ts';
+import { CONVERSION_COPY, PRICING_COMMON } from '@/lib/pricing.ts';
 import { PageEvent } from '../components/PageEvent.tsx';
 import { SignupForm } from './SignupForm.tsx';
 
@@ -75,8 +75,9 @@ export default async function SignupPage({
               </div>
               <h1 style={{ fontSize: 30 }}>Start your free 14-day trial</h1>
               <p className="muted" style={{ fontSize: 15 }}>
-                Linda is an AI agent workforce that onboards itself — sign up, connect your tools, and your first
-                agent is working in about four minutes. No setup call, because there is nothing for us to set up.
+                {CONVERSION_COPY.jtbdLine}. Linda is an AI agent workforce that onboards itself — sign
+                up, connect your tools, and your first agent is working in about four minutes. No setup
+                call, because there is nothing for us to set up.
               </p>
             </header>
 
