@@ -13,7 +13,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-const PUBLIC_PAGES = ['/', '/pricing', '/changelog', '/trust', '/login', '/signup'];
+const PUBLIC_PAGES = ['/', '/pricing', '/changelog', '/trust', '/terms', '/privacy', '/login', '/signup'];
 
 /** Tag fragments that must never appear as visible text on a rendered page. */
 const RAW_MARKUP_IN_TEXT = /<\/?(?:i|span|div|p|br|img|script|style|button|a)\b[^>]{0,120}>/i;
@@ -90,6 +90,21 @@ test.describe('public pages render clean', () => {
       const problems = await load(page, path);
       await expectCleanPage(page, path, problems);
     });
+  }
+});
+
+// LIN-121: the signup footer references "Terms and Privacy Policy" — the
+// words must be real links and the targets must actually exist (they 404'd
+// in production when the ticket was filed).
+test('signup footer links the legal reference to live pages', async ({ page }) => {
+  await page.goto('/signup', { waitUntil: 'load' });
+
+  for (const target of ['/terms', '/privacy']) {
+    const link = page.locator(`main a[href="${target}"]`);
+    await expect(link, `${target} link in the signup footer`).toHaveCount(1);
+    const href = await link.first().getAttribute('href');
+    const res = await page.request.get(href!);
+    expect(res.status(), `${target} must resolve, not 404`).toBe(200);
   }
 });
 
