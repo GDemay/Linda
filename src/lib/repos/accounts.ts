@@ -138,6 +138,24 @@ export function createMagicLink(db: Db, userId: string): { token: string; expire
   return { token: raw, expiresAt };
 }
 
+/** Newest unconsumed magic link for the user, or null (LIN-113 resend throttling). */
+export function latestMagicLink(db: Db, userId: string): { createdAt: string; expiresAt: string } | null {
+  const r = db
+    .prepare(
+      'SELECT created_at, expires_at FROM magic_link_tokens WHERE user_id = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 1',
+    )
+    .get(userId) as Row | undefined;
+  return r ? { createdAt: r.created_at, expiresAt: r.expires_at } : null;
+}
+
+/** Links minted for the user since `sinceIso`, consumed or not — the send-volume bound. */
+export function countMagicLinksSince(db: Db, userId: string, sinceIso: string): number {
+  const r = db
+    .prepare('SELECT COUNT(*) AS n FROM magic_link_tokens WHERE user_id = ? AND created_at > ?')
+    .get(userId, sinceIso) as Row;
+  return Number(r.n);
+}
+
 /**
  * Consumes a magic link exactly once and returns the user, or null when the
  * token is unknown, expired, or already used.

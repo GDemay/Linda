@@ -16,6 +16,7 @@ export const EVENT_NAMES = [
   'signup_error',
   'login_view',
   'magic_link_sent',
+  'magic_link_throttled',
   'first_task_dispatched',
 ] as const;
 

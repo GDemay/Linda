@@ -13,6 +13,8 @@ import {
   createWorkspace,
   findMembership,
   findUserByEmail,
+  countMagicLinksSince,
+  latestMagicLink,
   listWorkspacesForUser,
   resolveSession,
   revokeSession,
@@ -45,6 +47,14 @@ export function workspaceNameFromEmail(email: string, fallbackName: string): str
   return name;
 }
 
+// LIN-113: bound the magic-link send path. A client retry loop landed 20 links
+// in one inbox in 33 minutes — invisible to the user, but it burns the Resend
+// sender reputation that trialist activation depends on. Two guards: a resend
+// throttle (the link just sent is still valid and in flight) and a per-address
+// hourly cap.
+const MAGIC_LINK_HOURLY_LIMIT = Number(process.env.MAGIC_LINK_HOURLY_LIMIT ?? 3) || 3;
+const MAGIC_LINK_RESEND_WINDOW_MS = 60 * 1000;
+
 /** Emails a single-use sign-in link. Used by signup, idempotent re-signup, and /login. */
 export async function sendMagicLink(
   db: Db,
@@ -53,6 +63,22 @@ export async function sendMagicLink(
   baseUrl: string,
   isNew: boolean,
 ): Promise<boolean> {
+  const hourlyCount = countMagicLinksSince(
+    db,
+    user.id,
+    new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+  );
+  if (hourlyCount >= MAGIC_LINK_HOURLY_LIMIT) {
+    recordEvent(db, 'magic_link_throttled', { reason: 'hourly_limit', hourlyCount, isNew });
+    return false;
+  }
+  const latest = latestMagicLink(db, user.id);
+  if (latest && Date.now() - Date.parse(latest.createdAt) < MAGIC_LINK_RESEND_WINDOW_MS) {
+    // The previous link is still in flight and valid for ~14 more minutes —
+    // a resend now is a duplicate of an email the user already has.
+    recordEvent(db, 'magic_link_throttled', { reason: 'resent_too_soon', isNew });
+    return false;
+  }
   const { token } = createMagicLink(db, user.id);
   const link = `${baseUrl.replace(/\/$/, '')}/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`;
   const result = await sendEmail(magicLinkEmail({ to: user.email, name: user.name, link, workspaceName, isNew }));

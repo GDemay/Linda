@@ -218,6 +218,56 @@ describe('magic-link login (LIN-67 / LIN-49 fix #1)', () => {
   });
 });
 
+describe('magic-link send throttling (LIN-113)', () => {
+  const linkCount = (d: ReturnType<typeof db>, userId: string) =>
+    Number((d.prepare('SELECT COUNT(*) AS n FROM magic_link_tokens WHERE user_id = ?').get(userId) as { n: number }).n);
+
+  /** Ages every link for the user out of the 60s resend window but not the hourly window. */
+  const agePastResendWindow = (d: ReturnType<typeof db>, userId: string) =>
+    d
+      .prepare('UPDATE magic_link_tokens SET created_at = ? WHERE user_id = ?')
+      .run(new Date(Date.now() - 2 * 60 * 1000).toISOString(), userId);
+
+  it('does not mint or send a second link while the previous one is under a minute old', async () => {
+    const d = db();
+    const acct = await newAccount(d); // signup already sent link #1
+    await requestMagicLink(d, { email: acct.user.email }, 'https://linda.test');
+    expect(linkCount(d, acct.user.id)).toBe(1);
+    const ev = d
+      .prepare("SELECT data FROM analytics_events WHERE name = 'magic_link_throttled'")
+      .get() as { data: string } | undefined;
+    expect(ev?.data).toContain('resent_too_soon');
+  });
+
+  it('caps an address at 3 links per hour, silently — the response stays { ok: true }', async () => {
+    const d = db();
+    const acct = await newAccount(d); // link #1 from signup
+    for (let i = 2; i <= 3; i++) {
+      agePastResendWindow(d, acct.user.id);
+      await requestMagicLink(d, { email: acct.user.email }, 'https://linda.test');
+      expect(linkCount(d, acct.user.id)).toBe(i);
+    }
+    agePastResendWindow(d, acct.user.id);
+    await expect(requestMagicLink(d, { email: acct.user.email }, 'https://linda.test')).resolves.toEqual({
+      ok: true,
+    });
+    expect(linkCount(d, acct.user.id)).toBe(3);
+    const ev = d
+      .prepare("SELECT data FROM analytics_events WHERE name = 'magic_link_throttled'")
+      .get() as { data: string } | undefined;
+    expect(ev?.data).toContain('hourly_limit');
+  });
+
+  it('throttles independently per address', async () => {
+    const d = db();
+    const a = await newAccount(d);
+    const b = await newAccount(d);
+    await requestMagicLink(d, { email: b.user.email }, 'https://linda.test'); // b throttled, a unaffected
+    expect(linkCount(d, a.user.id)).toBe(1);
+    expect(linkCount(d, b.user.id)).toBe(1);
+  });
+});
+
 describe('workspace authorization', () => {
   it('grants access to a member', async () => {
     const d = db();
