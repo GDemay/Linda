@@ -150,15 +150,9 @@ test.describe.serial('revenue funnel: signup → onboarding → dashboard → ch
 
   test('dashboard shows the trial state and an upgrade path', async ({ page }) => {
     test.skip(!workspaceId, 'signup failed');
-    // KNOWN DEFECT (LIN-205 report, hurts-conversion): at ≤900px the sidebar
-    // holding the only standing 💳 Upgrade link is display:none, and the
-    // nudges/prompt only appear in the trial's final week or at 80% usage —
-    // so a mobile trialist mid-trial has no visible way to reach checkout.
-    // Expected-to-fail on mobile until that's fixed; remove this gate then.
-    test.fail(
-      test.info().project.name === 'mobile',
-      'no mobile upgrade entry point mid-trial (sidebar hidden at ≤900px)',
-    );
+    // FIXED (LIN-210): the topbar now carries the standing 💳 Upgrade link on
+    // compact viewports (the sidebar below 900px is display:none), so mobile
+    // trialists always have a path to checkout. Expected-failure gate removed.
     await login(page, email);
     await page.goto(`/dashboard?workspace=${workspaceId}`);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
@@ -170,16 +164,10 @@ test.describe.serial('revenue funnel: signup → onboarding → dashboard → ch
 
   test('upgrade page → local checkout → success banner with receipt', async ({ page }) => {
     test.skip(!workspaceId, 'signup failed');
-    // KNOWN DEFECT (LIN-205 report, blocks-trialist): invoices.number is
-    // globally UNIQUE but sequenced per workspace, so the FIRST invoice of
-    // every workspace in a month collides — checkout 500s for every
-    // customer after the first. Desktop (first project) proves the happy
-    // path; mobile (second) deterministically hits the 500. Expected-to-fail
-    // here until the collision is fixed; remove this gate then.
-    test.fail(
-      test.info().project.name === 'mobile',
-      'second checkout of the month 500s: invoices.number collision',
-    );
+    // FIXED (LIN-209): invoice numbers are now sequenced globally with
+    // transactional checkout writes, so the per-workspace collision that
+    // 500'd every customer after the first in a month is gone. Both projects
+    // (desktop and mobile) now prove the happy path. Gate removed.
     await login(page, email);
     await page.goto(`/dashboard/upgrade?workspace=${workspaceId}`);
 
