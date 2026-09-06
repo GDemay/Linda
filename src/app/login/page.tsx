@@ -4,13 +4,14 @@ import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
-import { StateBar, type JourneyState } from '../components/StateBar.tsx';
+import { StateBar, journeySpecEnabled, type JourneyState } from '../components/StateBar.tsx';
 import { PageEvent } from '../components/PageEvent.tsx';
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const paramState = searchParams.get('state') as JourneyState | null;
+  // LIN-118: ?state= journey override is QA-harness-only; ignore it for customers.
+  const paramState = journeySpecEnabled ? (searchParams.get('state') as JourneyState | null) : null;
   const linkError = searchParams.get('error');
 
   const [form, setForm] = useState({ email: '', password: '' });

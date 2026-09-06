@@ -1,5 +1,11 @@
 'use client';
 
+// LIN-118: the Journey Spec state-switcher is an internal QA harness and must never
+// render for customers. Hidden in production builds unless explicitly enabled via
+// NEXT_PUBLIC_JOURNEY_SPEC=1 (e.g. for a QA pass); always available in dev.
+export const journeySpecEnabled =
+  process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_JOURNEY_SPEC === '1';
+
 export type JourneyState = 'live' | 'empty' | 'loading' | 'error' | 'destructive-confirm' | 'success';
 
 interface StateBarProps {
@@ -9,6 +15,8 @@ interface StateBarProps {
 }
 
 export function StateBar({ currentState, onStateChange, pageName }: StateBarProps) {
+  if (!journeySpecEnabled) return null;
+
   const states: { id: JourneyState; label: string }[] = [
     { id: 'live', label: 'Live' },
     { id: 'empty', label: 'Empty' },
