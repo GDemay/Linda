@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import { buildMetadata } from '@/lib/seo.ts';
 import { CHANGELOG } from '@/lib/changelog.ts';
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: 'Changelog — Linda',
   description: 'What shipped, and when.',
-};
+  path: '/changelog',
+});
 
 export default function ChangelogPage() {
   return (

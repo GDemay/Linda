@@ -1,13 +1,15 @@
 import Link from 'next/link';
+import { buildMetadata } from '@/lib/seo.ts';
 import { AGENT_CATALOG } from '@/lib/agents/catalog.ts';
 import { CREDIT_CONVERSION } from '@/lib/pricing.ts';
 import AccountPanel from './AccountPanel.tsx';
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: 'Trust & transparency — Linda',
   description:
     'What powers Linda, where your data lives, who processes it, and how to export or delete everything. Verified against the live deployment.',
-};
+  path: '/trust',
+});
 
 /** Update whenever the deployment facts change: model, region, sub-processors. */
 const LAST_VERIFIED = '5 September 2026';

@@ -6,11 +6,14 @@ import type { Metadata } from 'next';
 import './styles/tokens.css';
 import './styles/components.css';
 import './globals.css';
+import { buildMetadata } from '@/lib/seo.ts';
 
-export const metadata: Metadata = {
+// Root metadata is also the fallback for any route that forgets its own.
+export const metadata: Metadata = buildMetadata({
   title: 'Linda — your AI coworkers',
   description: 'Hire AI agents that run your calls, marketing, sales, finance, legal and hiring.',
-};
+  path: '/',
+});
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

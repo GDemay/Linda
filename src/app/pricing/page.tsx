@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import { buildMetadata } from '@/lib/seo.ts';
 import { PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: 'Pricing — Linda',
   description: 'Every tier has a published price. Self-serve all the way to the top.',
-};
+  path: '/pricing',
+});
 
 export default function PricingPage() {
   return (

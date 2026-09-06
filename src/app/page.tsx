@@ -1,13 +1,15 @@
 import Link from 'next/link';
+import { buildMetadata } from '@/lib/seo.ts';
 import { AGENT_CATALOG, AGENT_KEYS } from '@/lib/agents/catalog.ts';
 import { PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
 import { PageEvent } from './components/PageEvent.tsx';
 
-export const metadata = {
-  title: 'Linda — AI Agent Workforce That Onboards Itself',
+export const metadata = buildMetadata({
+  title: 'Linda — your AI coworkers',
   description:
     'Linda gives small teams a workforce of AI agents for prospecting, marketing, SEO, screening, and admin. 100% self-serve. No demo booking, no sales call.',
-};
+  path: '/',
+});
 
 export default function Home() {
   return (
