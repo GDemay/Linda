@@ -24,12 +24,18 @@ export const EVENT_NAMES = [
   'pricing_view',
   'signup_start',
   'signup_complete',
+  // Upgrade funnel (LIN-131): upgrade_view is a client beacon on the
+  // authenticated upgrade page; checkout_start/checkout_complete are
+  // recorded server-side where the money path actually changes state.
+  'upgrade_view',
+  'checkout_start',
+  'checkout_complete',
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];
 
 /** Events an anonymous client beacon may record; everything else is server-only. */
-export const PUBLIC_BEACON_EVENTS = ['landing_view', 'signup_view', 'login_view', 'pricing_view'] as const;
+export const PUBLIC_BEACON_EVENTS = ['landing_view', 'signup_view', 'login_view', 'pricing_view', 'upgrade_view'] as const;
 
 export function recordEvent(db: Db, name: EventName, data: Record<string, unknown> = {}): void {
   db.prepare('INSERT INTO analytics_events (id, name, data, created_at) VALUES (?, ?, ?, ?)').run(

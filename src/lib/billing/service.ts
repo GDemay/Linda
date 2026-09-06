@@ -1,6 +1,7 @@
 import type { Db } from '../db/index.ts';
 import { listWorkspaceAgents } from '../repos/accounts.ts';
 import { findSubscription } from '../repos/billing.ts';
+import { resolveCheckout } from './checkout.ts';
 import { resolvePlan } from './entitlements.ts';
 import { OVERAGE_USD_PER_CREDIT, TOKENS_PER_CREDIT, usageMeter } from './metering.ts';
 
@@ -14,11 +15,14 @@ export function billingOverview(db: Db, workspaceId: string, now: Date = new Dat
   const meter = usageMeter(db, workspaceId, resolved.entitlements, now);
   const subscription = findSubscription(db, workspaceId);
   const agents = listWorkspaceAgents(db, workspaceId);
+  const checkout = resolveCheckout();
   return {
     plan: resolved.entitlements,
     trial: resolved.trial,
     downgradedFromTrial: resolved.downgradedFromTrial,
     subscription,
+    /** Which checkout provider this deployment answers with (LIN-131). */
+    checkout: { provider: checkout.provider, configured: checkout.provider !== 'none' },
     usage: meter,
     creditConversion: {
       tokensPerCredit: TOKENS_PER_CREDIT,

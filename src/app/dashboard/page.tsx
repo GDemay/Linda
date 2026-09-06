@@ -65,6 +65,14 @@ type Approval = {
   createdAt: string;
 };
 
+/** Billing slice the dashboard needs to decide whether to show the upgrade prompt (LIN-131). */
+type BillingBanner = {
+  plan: { key: string; name: string; readOnly: boolean };
+  trial: { daysLeft: number } | null;
+  usage: { creditsUsed: number; limitCredits: number; capped: boolean };
+  agents: { name: string; status: string; pausedReason: string | null }[];
+};
+
 /** Agent identity hue is decorative only (design README: never encodes state). */
 const AGENT_HUE: Record<string, string> = {
   phone: 'var(--agent-support)',
@@ -253,6 +261,7 @@ function Dashboard() {
   const [kbScope, setKbScope] = useState<string[]>([]);
   const [removingDoc, setRemovingDoc] = useState<KnowledgeDoc | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [billing, setBilling] = useState<BillingBanner | null>(null);
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
@@ -275,7 +284,7 @@ function Dashboard() {
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
-    const [overview, runsRes, activityRes, tasksRes, approvalsRes, knowledgeRes, memoriesRes] = await Promise.all([
+    const [overview, runsRes, activityRes, tasksRes, approvalsRes, knowledgeRes, memoriesRes, billingRes] = await Promise.all([
       api<Overview>(`/workspaces/${workspaceId}`),
       api<{ runs: Run[] }>(`/workspaces/${workspaceId}/runs?limit=15`),
       api<{ events: ActivityEvent[] }>(`/workspaces/${workspaceId}/activity?limit=15`),
@@ -283,6 +292,7 @@ function Dashboard() {
       api<{ approvals: Approval[] }>(`/workspaces/${workspaceId}/approvals?status=pending`),
       api<{ documents: KnowledgeDoc[] }>(`/workspaces/${workspaceId}/knowledge`),
       api<{ memories: Memory[] }>(`/workspaces/${workspaceId}/memories`),
+      api<BillingBanner>(`/workspaces/${workspaceId}/billing`).catch(() => null),
     ]);
     setData(overview);
     setRuns(runsRes.runs);
@@ -295,6 +305,7 @@ function Dashboard() {
     setApprovals(approvalsRes.approvals);
     setKnowledge(knowledgeRes.documents);
     setMemories(memoriesRes.memories);
+    setBilling(billingRes);
   }, [workspaceId]);
 
   useEffect(() => {
@@ -489,6 +500,23 @@ function Dashboard() {
   const activeAgents = data.agents.filter((a) => a.status === 'active').length;
   const failedRuns = runs.filter((r) => r.status === 'failed');
 
+  // Upgrade prompt (LIN-131): shown exactly when a limit is in the way —
+  // cap reached, trial ending soon / ended (read-only), or billing paused an agent.
+  const billingPaused = (billing?.agents ?? []).filter((a) =>
+    ['spend_cap', 'trial_ended', 'subscription_canceled'].includes(a.pausedReason ?? ''),
+  );
+  const upgradePrompt: { title: string; body: string } | null = billing
+    ? billing.plan.readOnly
+      ? { title: 'Your trial has ended', body: 'The workspace is read-only until you pick a plan — upgrade to resume your agents. Nothing was deleted.' }
+      : billing.usage.capped
+        ? { title: 'Monthly usage cap reached', body: `Agents are paused at ${billing.usage.creditsUsed.toFixed(0)} of ${billing.usage.limitCredits.toLocaleString('en-US')} credits. Upgrade for a higher cap, or raise it in billing settings.` }
+        : billingPaused.length > 0
+          ? { title: `${billingPaused.length === 1 ? 'An agent is' : `${billingPaused.length} agents are`} paused by a billing limit`, body: 'Upgrade lifts the limit and resumes them immediately.' }
+          : billing.trial && billing.trial.daysLeft <= 3
+            ? { title: `Trial ends in ${billing.trial.daysLeft} day${billing.trial.daysLeft === 1 ? '' : 's'}`, body: 'Pick a plan now so your agents keep running without a pause.' }
+            : null
+    : null;
+
   return (
     <>
       {confirm && <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)} />}
@@ -509,6 +537,9 @@ function Dashboard() {
             <a className="l-nav__item" href="#agents">🧑‍💼 Agents</a>
             <a className="l-nav__item" href="#knowledge">📚 Knowledge</a>
             <a className="l-nav__item" href="#activity">📊 Activity</a>
+            <a className="l-nav__item" href={`/dashboard/upgrade?workspace=${encodeURIComponent(workspaceId ?? '')}`}>
+              💳 Upgrade
+            </a>
           </nav>
           <div>
             <p className="l-eyebrow" style={{ padding: '0 var(--space-3)', margin: '0 0 var(--space-2)' }}>
@@ -552,6 +583,27 @@ function Dashboard() {
         </aside>
 
         <div id="dashboard">
+          {upgradePrompt && (
+            <div
+              role="alert"
+              className="l-card"
+              style={{
+                margin: 'var(--space-3)',
+                borderColor: 'var(--accent)',
+                background: 'var(--bg-sunken)',
+              }}
+            >
+              <div className="l-card__body" style={{ padding: 'var(--space-3)', display: 'flex', gap: 'var(--space-3)', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 320px' }}>
+                  <b>{upgradePrompt.title}.</b>
+                  <p className="l-xs l-muted" style={{ margin: '4px 0 0' }}>{upgradePrompt.body}</p>
+                </div>
+                <Link href={`/dashboard/upgrade?workspace=${encodeURIComponent(workspaceId ?? '')}`}>
+                  <button className="l-btn l-btn--primary l-btn--sm">See plans — from $49/mo</button>
+                </Link>
+              </div>
+            </div>
+          )}
           <header className="l-topbar">
             <span className="l-sm l-muted">{data.workspace.name}</span>
             <span className="l-spacer" />

@@ -10,6 +10,8 @@ export type PricingTier = {
   monthlyUsd: number;
   annualUsd: number;
   seats: number;
+  /** Included monthly credits — entitlements read from here, single source of truth (LIN-131). */
+  monthlyCredits: number;
   blurb: string;
 };
 
@@ -20,6 +22,7 @@ export const PRICING_TIERS: PricingTier[] = [
     monthlyUsd: 49,
     annualUsd: 490,
     seats: 1,
+    monthlyCredits: 10_000,
     blurb: 'Client approvals and reporting in one place — no Slack back-and-forth.',
   },
   {
@@ -28,6 +31,7 @@ export const PRICING_TIERS: PricingTier[] = [
     monthlyUsd: 149,
     annualUsd: 1490,
     seats: 5,
+    monthlyCredits: 40_000,
     blurb: 'Your whole team assigns the work; clients approve in one place and reports ship on schedule.',
   },
   {
@@ -36,6 +40,7 @@ export const PRICING_TIERS: PricingTier[] = [
     monthlyUsd: 399,
     annualUsd: 3990,
     seats: 20,
+    monthlyCredits: 150_000,
     blurb: 'Agency-volume client reporting and approvals — still self-serve, no sales call.',
   },
 ];

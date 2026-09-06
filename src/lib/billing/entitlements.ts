@@ -41,10 +41,10 @@ export const FEATURE_WORKFLOWS_RUN = 'workflows.run';
 export const FEATURE_INTEGRATIONS_CONNECT = 'integrations.connect';
 const PAID_FEATURES = [FEATURE_AGENTS_RUN, FEATURE_WORKFLOWS_RUN, FEATURE_INTEGRATIONS_CONNECT];
 
-function tierPrice(key: string): { name: string; monthlyUsd: number } {
+function tierPrice(key: string): { name: string; monthlyUsd: number; monthlyCredits: number } {
   const tier = PRICING_TIERS.find((t) => t.key === key);
   if (!tier) throw new AppError('invalid', `no published price for plan '${key}'`);
-  return { name: tier.name, monthlyUsd: tier.monthlyUsd };
+  return { name: tier.name, monthlyUsd: tier.monthlyUsd, monthlyCredits: tier.monthlyCredits };
 }
 
 export const PLAN_ENTITLEMENTS: Record<PlanKey, PlanEntitlements> = {
@@ -70,19 +70,19 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, PlanEntitlements> = {
     featureFlags: [],
     readOnly: true,
   },
-  starter: { key: 'starter', ...entitle('starter', 10_000, 1) },
-  team: { key: 'team', ...entitle('team', 40_000, 5) },
-  scale: { key: 'scale', ...entitle('scale', 150_000, 20) },
+  starter: { key: 'starter', ...entitle('starter', 1) },
+  team: { key: 'team', ...entitle('team', 5) },
+  scale: { key: 'scale', ...entitle('scale', 20) },
 };
 
-function entitle(tierKey: string, monthlyCredits: number, seats: number) {
+function entitle(tierKey: string, seats: number) {
   const price = tierPrice(tierKey);
   return {
     name: price.name,
     monthlyUsd: price.monthlyUsd,
     seats,
     workspaces: 1,
-    monthlyCredits,
+    monthlyCredits: price.monthlyCredits,
     agentIds: 'all' as const,
     featureFlags: PAID_FEATURES,
     readOnly: false,
@@ -93,7 +93,7 @@ export function isPlanKey(value: string): value is PlanKey {
   return value in PLAN_ENTITLEMENTS;
 }
 
-export function isPaidPlan(plan: string): boolean {
+export function isPaidPlan(plan: string): plan is PlanKey {
   return isPlanKey(plan) && PLAN_ENTITLEMENTS[plan].monthlyUsd > 0;
 }
 
@@ -202,6 +202,26 @@ export function pauseAllAgents(db: Db, workspaceId: string, reason: string, summ
     });
   }
   return paused.length;
+}
+
+/**
+ * The inverse of pauseAllAgents, scoped to billing pauses only (spend cap,
+ * trial end, cancellation). Called when checkout fulfills: a workspace that
+ * just paid must be usable immediately, never left silently paused. Returns
+ * how many agents were resumed.
+ */
+export function resumeBillingPausedAgents(db: Db, workspaceId: string): number {
+  const billingReasons = new Set(['spend_cap', 'trial_ended', 'subscription_canceled']);
+  const resumable = listWorkspaceAgents(db, workspaceId).filter((a) => {
+    if (a.status !== 'paused') return false;
+    const reason = a.config.pausedReason;
+    return typeof reason === 'string' && billingReasons.has(reason);
+  });
+  for (const agent of resumable) {
+    const { pausedReason: _pr, pausedSummary: _ps, pausedAt: _pa, ...config } = agent.config;
+    updateWorkspaceAgent(db, workspaceId, agent.id, { status: 'active', config });
+  }
+  return resumable.length;
 }
 
 // --------------------------------------------------------------- gating

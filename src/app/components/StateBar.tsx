@@ -22,7 +22,7 @@ interface StateBarProps {
 }
 
 export function StateBar({ currentState, onStateChange, pageName }: StateBarProps) {
-  if (!harnessOn) return null;
+  if (!journeySpecEnabled) return null;
 
   const states: { id: JourneyState; label: string }[] = [
     { id: 'live', label: 'Live' },

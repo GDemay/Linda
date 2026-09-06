@@ -11,7 +11,7 @@ import type { EventName } from '@/lib/analytics/events.ts';
 export function PageEvent({
   name,
 }: {
-  name: Extract<EventName, 'landing_view' | 'signup_view' | 'login_view' | 'pricing_view'>;
+  name: Extract<EventName, 'landing_view' | 'signup_view' | 'login_view' | 'pricing_view' | 'upgrade_view'>;
 }) {
   useEffect(() => {
     fetch('/api/events', {
