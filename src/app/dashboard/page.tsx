@@ -1,9 +1,10 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { useWorkspaceId } from '@/lib/use-workspace.ts';
 import { dashboardNudges, type UpgradeNudge } from '@/lib/billing/nudges.ts';
 import { formatDate, formatDateTime, formatTime, stripMarkup } from '@/lib/ui/format.ts';
 import { MemoryPanel, type Memory } from '@/app/components/MemoryPanel.tsx';
@@ -305,7 +306,9 @@ function greeting() {
 
 function Dashboard() {
   const router = useRouter();
-  const workspaceId = useSearchParams().get('workspace');
+  // Resolves from the session when the param is absent, so a refresh or
+  // deep link of bare /dashboard keeps a valid session (LIN-150).
+  const workspaceId = useWorkspaceId();
 
   const [data, setData] = useState<Overview | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -375,12 +378,9 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!workspaceId) {
-      router.replace('/login');
-      return;
-    }
+    if (!workspaceId) return;
     load().catch((err) => setFatalError((err as Error).message));
-  }, [workspaceId, load, router]);
+  }, [workspaceId, load]);
 
   const withActionError = async (fn: () => Promise<void>) => {
     setActionError(null);
@@ -515,7 +515,9 @@ function Dashboard() {
     show('All agents paused. Nothing in flight was lost.');
   }
 
-  if (!workspaceId) return null;
+  // While the workspace resolves from the session, keep the skeleton up —
+  // a blank flash reads as a broken page (LIN-150).
+  if (!workspaceId) return <SkeletonDashboard />;
 
   // Full error state: recoverable, with the fix (retry) in reach.
   if (fatalError && !data) {

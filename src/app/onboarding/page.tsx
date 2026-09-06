@@ -1,8 +1,9 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client.ts';
+import { useWorkspaceId } from '@/lib/use-workspace.ts';
 import { PRICING_COMMON } from '@/lib/pricing.ts';
 import { StateBar, type JourneyState } from '../components/StateBar.tsx';
 import { OnboardingRail, type Trial } from '../components/OnboardingRail.tsx';
@@ -69,7 +70,9 @@ function trialFor(workspace: Workspace): Trial {
 
 function OnboardingFlow() {
   const router = useRouter();
-  const workspaceId = useSearchParams().get('workspace');
+  // Resolves from the session when the param is absent, so a refresh of bare
+  // /onboarding keeps a valid session instead of restarting at /signup (LIN-150).
+  const workspaceId = useWorkspaceId('/signup');
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
@@ -107,10 +110,7 @@ function OnboardingFlow() {
   }, [workspaceId]);
 
   useEffect(() => {
-    if (!workspaceId) {
-      router.replace('/signup');
-      return;
-    }
+    if (!workspaceId) return;
     Promise.all([api<Catalog>('/catalog'), refresh()])
       .then(([c]) => setCatalog(c))
       .catch((err) => setError((err as Error).message));
