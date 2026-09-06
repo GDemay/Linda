@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { dashboardNudges, type UpgradeNudge } from '@/lib/billing/nudges.ts';
 import { formatDate, formatDateTime, formatTime, stripMarkup } from '@/lib/ui/format.ts';
 import { MemoryPanel, type Memory } from '@/app/components/MemoryPanel.tsx';
 
@@ -65,11 +66,11 @@ type Approval = {
   createdAt: string;
 };
 
-/** Billing slice the dashboard needs to decide whether to show the upgrade prompt (LIN-131). */
+/** Billing slice the dashboard needs to decide whether to show the upgrade prompt (LIN-131) and nudges (LIN-143). */
 type BillingBanner = {
   plan: { key: string; name: string; readOnly: boolean };
   trial: { daysLeft: number } | null;
-  usage: { creditsUsed: number; limitCredits: number; capped: boolean };
+  usage: { creditsUsed: number; limitCredits: number; ratio: number; capped: boolean };
   agents: { name: string; status: string; pausedReason: string | null }[];
 };
 
@@ -192,6 +193,64 @@ function useToast() {
   return { toast, show };
 }
 
+/** Fire-and-forget nudge funnel beacon — same shape as PageEvent, plus which nudge. */
+function nudgeBeacon(name: 'upgrade_nudge_view' | 'upgrade_nudge_click', kind: UpgradeNudge['kind']) {
+  fetch('/api/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, data: { kind } }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+const NUDGE_DISMISSED_KEY = 'linda.nudges.dismissed';
+const NUDGE_VIEWED_KEY = 'linda.nudges.viewed';
+
+function readSessionList(key: string): string[] {
+  try {
+    const raw = sessionStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Pre-expiry trial nudges (LIN-143): soft, dismissible-per-session warning
+ * banners, unlike the hard LIN-131 prompt. The view beacon fires once per
+ * nudge kind per session so nudge CTR keeps a stable denominator across
+ * dashboard reloads.
+ */
+function useUpgradeNudges(billing: BillingBanner | null) {
+  const [dismissed, setDismissed] = useState<string[]>([]);
+
+  // Dismissal survives remounts within the session (not across sessions).
+  useEffect(() => {
+    setDismissed(readSessionList(NUDGE_DISMISSED_KEY));
+  }, []);
+
+  useEffect(() => {
+    if (!billing) return;
+    const viewed = readSessionList(NUDGE_VIEWED_KEY);
+    const fresh = dashboardNudges(billing).filter((n) => !viewed.includes(n.kind));
+    if (fresh.length === 0) return;
+    for (const n of fresh) nudgeBeacon('upgrade_nudge_view', n.kind);
+    sessionStorage.setItem(NUDGE_VIEWED_KEY, JSON.stringify([...viewed, ...fresh.map((n) => n.kind)]));
+  }, [billing]);
+
+  const dismiss = useCallback((kind: UpgradeNudge['kind']) => {
+    setDismissed((prev) => {
+      const next = prev.includes(kind) ? prev : [...prev, kind];
+      sessionStorage.setItem(NUDGE_DISMISSED_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const nudges = billing ? dashboardNudges(billing).filter((n) => !dismissed.includes(n.kind)) : [];
+  return { nudges, dismiss };
+}
+
 /** Skeletons match the final layout so nothing jumps on load (never a spinner). */
 function SkeletonDashboard() {
   return (
@@ -268,6 +327,7 @@ function Dashboard() {
   const [busyApprovalId, setBusyApprovalId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const { toast, show } = useToast();
+  const { nudges, dismiss } = useUpgradeNudges(billing);
 
   // Composer state: which hired agent, which template, what instruction.
   const [taskAgent, setTaskAgent] = useState<string>('');
@@ -583,6 +643,41 @@ function Dashboard() {
         </aside>
 
         <div id="dashboard">
+          {/* Pre-expiry nudges (LIN-143): soft, dismissible; the hard prompt below still owns the post-facto states. */}
+          {nudges.map((nudge) => (
+            <div key={nudge.kind} role="status" className="l-banner l-banner--warning" style={{ margin: 'var(--space-3)' }}>
+              <span>
+                {nudge.kind === 'trial_days' ? (
+                  <>
+                    <b>
+                      {nudge.daysLeft} day{nudge.daysLeft === 1 ? '' : 's'} left in your trial
+                    </b>{' '}
+                    — keep your agents running.
+                  </>
+                ) : (
+                  <>
+                    <b>You've used {Math.round(nudge.ratio * 100)}% of this month's credits</b>{' '}
+                    ({nudge.creditsUsed.toFixed(0)}/{nudge.limitCredits.toLocaleString('en-US')}) — agents pause at the
+                    cap.
+                  </>
+                )}{' '}
+                <a
+                  href={`/dashboard/upgrade?workspace=${encodeURIComponent(workspaceId ?? '')}`}
+                  onClick={() => nudgeBeacon('upgrade_nudge_click', nudge.kind)}
+                >
+                  Upgrade to keep everything running
+                </a>
+              </span>
+              <span className="l-spacer" />
+              <button
+                className="l-btn l-btn--ghost l-btn--sm"
+                aria-label="Dismiss"
+                onClick={() => dismiss(nudge.kind)}
+              >
+                Dismiss
+              </button>
+            </div>
+          ))}
           {upgradePrompt && (
             <div
               role="alert"

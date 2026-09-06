@@ -30,12 +30,25 @@ export const EVENT_NAMES = [
   'upgrade_view',
   'checkout_start',
   'checkout_complete',
+  // Pre-expiry nudges (LIN-143): both are client beacons from the dashboard,
+  // carrying { kind: 'trial_days' | 'usage_cap' } so nudge CTR is measurable
+  // per surface in the funnel events.
+  'upgrade_nudge_view',
+  'upgrade_nudge_click',
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];
 
 /** Events an anonymous client beacon may record; everything else is server-only. */
-export const PUBLIC_BEACON_EVENTS = ['landing_view', 'signup_view', 'login_view', 'pricing_view', 'upgrade_view'] as const;
+export const PUBLIC_BEACON_EVENTS = [
+  'landing_view',
+  'signup_view',
+  'login_view',
+  'pricing_view',
+  'upgrade_view',
+  'upgrade_nudge_view',
+  'upgrade_nudge_click',
+] as const;
 
 export function recordEvent(db: Db, name: EventName, data: Record<string, unknown> = {}): void {
   db.prepare('INSERT INTO analytics_events (id, name, data, created_at) VALUES (?, ?, ?, ?)').run(
