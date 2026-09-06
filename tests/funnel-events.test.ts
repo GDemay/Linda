@@ -17,7 +17,7 @@ import { db, newAccount, VALID_PASSWORD } from './helpers.ts';
 describe('LIN-111 funnel instrumentation', () => {
   it('splits first_task_dispatched by audience', async () => {
     const d = db();
-    const ext = await newAccount(d, { email: 'buyer@acme.example' });
+    const ext = await newAccount(d, { email: 'buyer@acme.io' });
     const qa = await signup(d, {
       email: 'smoke@agentmail.to',
       name: 'QA Bot',
@@ -46,13 +46,13 @@ describe('LIN-111 funnel instrumentation', () => {
   it('persists referral source on the user and surfaces it on the lead', async () => {
     const d = db();
     await signup(d, {
-      email: 'redditor@globex.example',
+      email: 'redditor@globex.io',
       name: 'Redditor',
       password: VALID_PASSWORD,
       workspaceName: 'Globex',
       referralSource: ' Reddit_Community ',
     });
-    const lead = listLeads(d).find((l) => l.email === 'redditor@globex.example');
+    const lead = listLeads(d).find((l) => l.email === 'redditor@globex.io');
     expect(lead?.referralSource).toBe('reddit_community');
 
     const bare = await newAccount(d);
@@ -68,14 +68,14 @@ describe('LIN-111 funnel instrumentation', () => {
 
   it('marks lead emailVerified only after a magic link is consumed', async () => {
     const d = db();
-    const { user } = await newAccount(d, { email: 'verify@acme.example' });
+    const { user } = await newAccount(d, { email: 'verify@acme.io' });
     expect(listLeads(d).find((l) => l.id === user.id)?.emailVerified).toBe(false);
   });
 
   it('gives the admin digest the full external contact list', async () => {
     const d = db();
-    await newAccount(d, { email: 'one@acme.example' });
-    await newAccount(d, { email: 'two@globex.example' });
+    await newAccount(d, { email: 'one@acme.io' });
+    await newAccount(d, { email: 'two@globex.io' });
     await signup(d, {
       email: 'qa@linda.internal',
       name: 'QA',
@@ -83,7 +83,7 @@ describe('LIN-111 funnel instrumentation', () => {
       workspaceName: 'QA',
     });
     const detail = leadStatsDetail(d);
-    expect(detail.externalLeads.map((l) => l.email).sort()).toEqual(['one@acme.example', 'two@globex.example']);
+    expect(detail.externalLeads.map((l) => l.email).sort()).toEqual(['one@acme.io', 'two@globex.io']);
     expect(detail.externalLeads.every((l) => !l.email.includes('agentmail'))).toBe(true);
   });
 

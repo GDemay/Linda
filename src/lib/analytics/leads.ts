@@ -18,11 +18,23 @@ export function normalizeEmail(email: string): string {
   return String(email || '').trim().toLowerCase();
 }
 
-const INTERNAL_EMAIL_PATTERNS = [
+// QA/automation signups (LIN-147). `example.com` and the reserved `.example`
+// TLD (RFC 2606) can only ever be test traffic — `linda-qa-test.example` and
+// `lin*-verify@example.com` style addresses all land here — so matching the
+// whole domain class is safe and self-maintaining as QA prefixes evolve.
+const QA_EMAIL_PATTERNS = [
   /@agentmail\.to$/, // internal QA inboxes
   /@linda\.internal$/, // agent smoke-test accounts on the reserved QA domain
+  /@example\.com$/, // *-verify@example.com production checks
+  /\.example$/, // any *.example host, incl. linda-qa-test.example
   /^audit\+/, // audit+lin49-style QA signups
+  /^ceo-probe\+/, // agentmail probe inboxes
 ];
+
+export function isQaTestEmail(email: string): boolean {
+  const norm = normalizeEmail(email);
+  return QA_EMAIL_PATTERNS.some((re) => re.test(norm));
+}
 
 // Extra exact-match internal addresses (e.g. the founder's) live in
 // LINDA_INTERNAL_EMAILS — a comma-separated list — so personal addresses
@@ -41,9 +53,7 @@ export type LeadAudience = 'internal' | 'external';
 
 export function leadAudience(email: string): LeadAudience {
   const norm = normalizeEmail(email);
-  return INTERNAL_EMAIL_PATTERNS.some((re) => re.test(norm)) || internalEmailsExact().has(norm)
-    ? 'internal'
-    : 'external';
+  return isQaTestEmail(norm) || internalEmailsExact().has(norm) ? 'internal' : 'external';
 }
 
 export type Lead = {
@@ -141,6 +151,12 @@ export type LeadStatsSummary = {
   uniqueExternalSignups: number;
   externalActiveTrials: number;
   internalSignups: number;
+  /**
+   * LIN-147: internal signups that matched the QA/automation patterns, split
+   * out from staff addresses so a QA run inflating these is visible at a
+   * glance instead of leaking into the external funnel. external = humans.
+   */
+  qaTestSignups: number;
   totalTasksExecuted: number;
   completedTasks: number;
 };
@@ -157,6 +173,7 @@ export function leadStatsSummary(db: Db): LeadStatsSummary {
     uniqueExternalSignups: external.length,
     externalActiveTrials: external.filter((l) => l.status === 'active_trial').length,
     internalSignups: leads.length - external.length,
+    qaTestSignups: leads.filter((l) => isQaTestEmail(l.email)).length,
     totalTasksExecuted: countTasks(db),
     completedTasks: countCompletedTasks(db),
   };

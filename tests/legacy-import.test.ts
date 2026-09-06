@@ -25,17 +25,17 @@ describe('legacy lead import', () => {
   it('imports deduped legacy leads and preserves their original signup timestamps', () => {
     const d = createTestDb();
     const file = writeLeads([
-      { name: 'Sarah Connor', email: 'sarah.connor@example.com', createdAt: '2026-09-05T17:16:37.034Z' },
-      { name: 'Sarah Connor', email: 'sarah.connor@example.com', createdAt: '2026-09-05T17:16:14.787Z' },
-      { name: 'Alex Rivera', email: 'alex.rivera@example.com', createdAt: '2026-09-05T17:13:11.881Z' },
-      { name: 'Alex Rivera', email: 'alex.rivera@example.com', createdAt: '2026-09-05T16:41:41.827Z' },
+      { name: 'Sarah Connor', email: 'sarah.connor@skylineops.io', createdAt: '2026-09-05T17:16:37.034Z' },
+      { name: 'Sarah Connor', email: 'sarah.connor@skylineops.io', createdAt: '2026-09-05T17:16:14.787Z' },
+      { name: 'Alex Rivera', email: 'alex.rivera@growthagency.io', createdAt: '2026-09-05T17:13:11.881Z' },
+      { name: 'Alex Rivera', email: 'alex.rivera@growthagency.io', createdAt: '2026-09-05T16:41:41.827Z' },
     ]);
 
     const result = importLegacyLeads(d, file);
     expect(result.imported).toBe(2);
     expect(result.skipped).toBe(0);
 
-    const sarah = findUserByEmail(d, 'sarah.connor@example.com');
+    const sarah = findUserByEmail(d, 'sarah.connor@skylineops.io');
     expect(sarah?.createdAt).toBe('2026-09-05T17:16:14.787Z'); // earliest submission wins
 
     const stats = leadStatsSummary(d);
@@ -47,7 +47,7 @@ describe('legacy lead import', () => {
 
   it('is idempotent and never overwrites an existing account', () => {
     const d = createTestDb();
-    const file = writeLeads([{ name: 'Alex Rivera', email: 'alex.rivera@example.com' }]);
+    const file = writeLeads([{ name: 'Alex Rivera', email: 'alex.rivera@growthagency.io' }]);
 
     expect(importLegacyLeads(d, file).imported).toBe(1);
     const second = importLegacyLeads(d, file);
