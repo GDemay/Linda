@@ -242,14 +242,24 @@ nav.topbar {
 nav.topbar .inner {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 12px 24px;
+  padding: 4px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
 }
-nav.topbar a { color: var(--text); text-decoration: none; font-size: 14px; }
+/* LIN-123: 44px minimum touch targets for mobile nav links (Apple HIG). */
+nav.topbar a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 6px;
+}
 nav.topbar a.brand { font-weight: 800; letter-spacing: -0.02em; }
+nav.topbar button { min-height: 44px; }
 
 /* 5-State System UI Tokens & Components */
 

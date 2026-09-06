@@ -93,6 +93,29 @@ test.describe('public pages render clean', () => {
   }
 });
 
+// LIN-123: nav links measured ~22px tall at 390px — below the 44px
+// touch-target minimum (Apple HIG). Every customer-facing nav element
+// must now clear the floor; the fix lives in globals.css (min-height on
+// nav.topbar a/button), this keeps it from regressing.
+test('nav tap targets meet the 44px touch-target minimum (LIN-123)', async ({ page }) => {
+  const width = page.viewportSize()?.width ?? 1280;
+  test.skip(width > 880, 'touch-target floor only asserted at mobile widths');
+
+  for (const path of ['/', '/pricing']) {
+    await page.goto(path, { waitUntil: 'load' });
+    const targets = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('nav.topbar a, nav.topbar button')).map((el) => ({
+        label: (el.textContent ?? '').trim().slice(0, 24),
+        height: Math.round(el.getBoundingClientRect().height),
+      })),
+    );
+    expect(targets.length, `${path}: topbar must have nav targets to measure`).toBeGreaterThan(0);
+    for (const t of targets) {
+      expect(t.height, `${path} @ ${width}px: nav tap target "${t.label}"`).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
 // LIN-121: the signup footer references "Terms and Privacy Policy" — the
 // words must be real links and the targets must actually exist (they 404'd
 // in production when the ticket was filed).
