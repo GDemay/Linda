@@ -141,6 +141,9 @@ async function stripeCreateSession(
     'line_items[0][price_data][unit_amount]': String(Math.round(tier.monthlyUsd * 100)),
     'line_items[0][price_data][recurring][interval]': 'month',
     'line_items[0][price_data][product_data][name]': `Linda ${tier.name} plan`,
+    // Managed Payments requires a product tax code on the line item; SaaS = txcd_10103000.
+    // Must live under product_data — price_data[tax_code] / line_items[0][tax_code] are rejected.
+    'line_items[0][price_data][product_data][tax_code]': 'txcd_10103000',
     'line_items[0][price_data][product_data][description]': `${tier.seats} seat(s), ${tier.monthlyCredits.toLocaleString('en-US')} credits/mo`,
     success_url: `${input.origin}/dashboard/upgrade?workspace=${encodeURIComponent(input.workspaceId)}&checkout=success&plan=${input.plan}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${input.origin}/dashboard/upgrade?workspace=${encodeURIComponent(input.workspaceId)}&checkout=cancelled`,

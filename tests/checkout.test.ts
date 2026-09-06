@@ -80,6 +80,42 @@ describe('startCheckout', () => {
   });
 });
 
+describe('stripeCreateSession — session create form', () => {
+  it('sends the product tax_code under product_data (Managed Payments requirement)', async () => {
+    const d = db();
+    const { workspace } = await newAccount(d);
+    const captured: { url: string; body: string }[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      captured.push({ url: String(url), body: String(init?.body) });
+      return new Response(JSON.stringify({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/cs_test_1' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+    try {
+      const res = await startCheckout(
+        d,
+        { workspaceId: workspace.id, plan: 'starter', origin: 'https://linda.example' },
+        envWith({ STRIPE_SECRET_KEY: 'sk_test_x', STRIPE_WEBHOOK_SECRET: 'whsec_y' }),
+      );
+      expect(res.provider).toBe('stripe');
+      expect(res.sessionId).toBe('cs_test_1');
+      expect(captured).toHaveLength(1);
+      const form = new URLSearchParams(captured[0].body);
+      // Without a tax code on the line item, Stripe Managed Payments accounts
+      // reject session creation with a 400 ("product tax code is missing").
+      expect(form.get('line_items[0][price_data][product_data][tax_code]')).toBe('txcd_10103000');
+      // And it must be under product_data — the other placements are unknown params.
+      expect(form.get('line_items[0][price_data][tax_code]')).toBeNull();
+      expect(form.get('line_items[0][tax_code]')).toBeNull();
+      expect(form.get('line_items[0][price_data][product_data][name]')).toBe('Linda Starter plan');
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
 describe('fulfillCheckout — the money-moved moment', () => {
   it('activates the plan and resumes agents billing paused (cap, trial end)', async () => {
     const d = db();
