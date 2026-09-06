@@ -2,7 +2,7 @@
 
 import type { OnboardingStep } from '@/lib/repos/types.ts';
 
-const STEPS: { key: OnboardingStep; label: string }[] = [
+export const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: 'company_profile', label: 'Your business' },
   { key: 'pick_goals', label: 'What you want done' },
   { key: 'hire_agents', label: 'Pick your agents' },
@@ -31,13 +31,9 @@ export function OnboardingRail({
   trial: Trial;
 }) {
   return (
-    <aside
-      style={{
-        padding: 'var(--space-6) var(--space-4)',
-        borderRight: '1px solid var(--border-subtle)',
-        background: 'var(--bg-canvas)',
-      }}
-    >
+    // Sizing/border live on the class, not inline (LIN-211) so the ≤900px
+    // media query can collapse the rail on phones.
+    <aside className="l-wizard__rail">
       <div className="l-row" style={{ marginBottom: 'var(--space-6)' }}>
         <span className="logo-mark">L</span>
         <b>Linda</b>

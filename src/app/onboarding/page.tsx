@@ -6,7 +6,7 @@ import { api } from '@/lib/client.ts';
 import { useWorkspaceId } from '@/lib/use-workspace.ts';
 import { PRICING_COMMON } from '@/lib/pricing.ts';
 import { StateBar, type JourneyState } from '../components/StateBar.tsx';
-import { OnboardingRail, type Trial } from '../components/OnboardingRail.tsx';
+import { OnboardingRail, STEPS, type Trial } from '../components/OnboardingRail.tsx';
 import type { OnboardingStep } from '@/lib/repos/types.ts';
 
 /**
@@ -175,8 +175,8 @@ function OnboardingFlow() {
       <main style={{ minHeight: '100vh', background: 'var(--bg-canvas)' }}>
         <StateBar currentState="loading" onStateChange={setCustomState} pageName="Onboarding" />
         <div className="kit-frame" style={{ maxWidth: '1200px', margin: 'var(--space-8) auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', minHeight: '660px' }}>
-            <div style={{ padding: 'var(--space-6) var(--space-4)', borderRight: '1px solid var(--border-subtle)' }}>
+          <div className="l-wizard">
+            <div className="l-wizard__rail">
               <div className="l-skeleton" style={{ width: '60%', height: '24px', marginBottom: 'var(--space-6)' }} />
               {[0, 1, 2, 3, 4].map((i) => (
                 <div key={i} className="l-skeleton" style={{ width: '80%', height: '18px', marginBottom: 'var(--space-3)' }} />
@@ -800,10 +800,17 @@ function OnboardingFlow() {
       <StateBar currentState={effectiveState} onStateChange={setCustomState} pageName="Onboarding" />
 
       <div className="kit-frame" style={{ margin: 'var(--space-8) auto', width: '100%', maxWidth: '1200px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', minHeight: '660px', background: 'var(--bg-surface)' }}>
+        <div className="l-wizard">
+          {/* Phones hide the rail (LIN-211); this line keeps progress visible. */}
+          <div className="l-wizard__mobilebar" role="status">
+            <b>
+              {status.isComplete ? 'Setup complete' : `Step ${Math.min(STEPS.findIndex((s) => s.key === status.step) + 1, STEPS.length)} of ${STEPS.length}`}
+            </b>
+            <span className="l-xs l-muted">{status.progress}% set up — every step is saved as you go</span>
+          </div>
           <OnboardingRail step={status.step} progress={status.progress} isComplete={status.isComplete} trial={trial} />
 
-          <div style={{ padding: 'var(--space-10)', overflow: 'hidden' }}>
+          <div className="l-wizard__content">
             {error && (
               <div className="l-banner l-banner--danger" role="alert" style={{ marginBottom: 'var(--space-5)' }}>
                 <span className="l-col" style={{ gap: 'var(--space-1)' }}>
