@@ -12,7 +12,7 @@
 // ("UI invariants" step) so they run against the real Next.js output.
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   FALLBACK,
@@ -137,5 +137,30 @@ describe('static anti-pattern scan of src/app', () => {
     // page. Serialization for fetch bodies is fine; rendering it is not.
     const offenders = files.filter((f) => /\{\s*JSON\.stringify/.test(readFileSync(f, 'utf8')));
     expect(offenders.map((f) => f.split('/src/app/')[1])).toEqual([]);
+  });
+
+  it('QA harness toolbar is hard-gated behind NEXT_PUBLIC_QA_HARNESS (LIN-118)', () => {
+    // The Journey Spec state-switcher is internal QA tooling. It once shipped
+    // to production on /login and /onboarding; this gate makes sure the
+    // early-return in StateBar never gets removed.
+    const stateBar = readFileSync(join(import.meta.dirname, '..', 'src', 'app', 'components', 'StateBar.tsx'), 'utf8');
+    expect(stateBar, 'StateBar must keep the QA_HARNESS_ENABLED flag export').toContain(
+      'process.env.NEXT_PUBLIC_QA_HARNESS',
+    );
+    expect(stateBar, 'StateBar must render nothing when the flag is off').toMatch(
+      /if\s*\(!QA_HARNESS_ENABLED\)\s*return null/,
+    );
+  });
+
+  it('signup footer links the legal pages it references (LIN-121)', () => {
+    const signup = readFileSync(join(import.meta.dirname, '..', 'src', 'app', 'signup', 'page.tsx'), 'utf8');
+    expect(signup).toContain('href="/terms"');
+    expect(signup).toContain('href="/privacy"');
+    for (const page of ['terms', 'privacy']) {
+      expect(
+        existsSync(join(import.meta.dirname, '..', 'src', 'app', page, 'page.tsx')),
+        `/${page} page must exist so the footer links resolve`,
+      ).toBe(true);
+    }
   });
 });

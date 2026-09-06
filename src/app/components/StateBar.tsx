@@ -2,6 +2,13 @@
 
 export type JourneyState = 'live' | 'empty' | 'loading' | 'error' | 'destructive-confirm' | 'success';
 
+// LIN-118: this toolbar is an internal QA harness, never customer UI.
+// NEXT_PUBLIC_* vars are inlined at build time, so in any build where the
+// variable is unset — every production build — this is `false` and the
+// toolbar (and its state-switching handlers) is dead-code eliminated out
+// of the client bundle. Local QA runs opt in with NEXT_PUBLIC_QA_HARNESS=1.
+export const QA_HARNESS_ENABLED = process.env.NEXT_PUBLIC_QA_HARNESS === '1';
+
 interface StateBarProps {
   currentState: JourneyState;
   onStateChange: (state: JourneyState) => void;
@@ -9,6 +16,8 @@ interface StateBarProps {
 }
 
 export function StateBar({ currentState, onStateChange, pageName }: StateBarProps) {
+  if (!QA_HARNESS_ENABLED) return null;
+
   const states: { id: JourneyState; label: string }[] = [
     { id: 'live', label: 'Live' },
     { id: 'empty', label: 'Empty' },
