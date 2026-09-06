@@ -8,7 +8,11 @@ import type { EventName } from '@/lib/analytics/events.ts';
  * server records the event name and nothing else, so no consent banner is
  * needed and there is no visitor profile to leak.
  */
-export function PageEvent({ name }: { name: Extract<EventName, 'landing_view' | 'signup_view' | 'login_view'> }) {
+export function PageEvent({
+  name,
+}: {
+  name: Extract<EventName, 'landing_view' | 'signup_view' | 'login_view' | 'pricing_view'>;
+}) {
   useEffect(() => {
     fetch('/api/events', {
       method: 'POST',

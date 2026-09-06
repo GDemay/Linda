@@ -27,7 +27,15 @@ export const signupSchema = z.object({
   /** Optional since LIN-67: an empty password means a magic-link-only account. */
   password: z.string().max(400).optional(),
   workspaceName: z.string().trim().min(1).max(200).optional(),
+  /** Signup channel tag (?ref= on /signup), persisted on the user (LIN-111). */
+  referralSource: z.string().trim().max(64).optional(),
 });
+
+/** 'Reddit_Community ' → 'reddit_community'; blank → null (no source). */
+export function normalizeReferralSource(raw: string | undefined | null): string | null {
+  const s = String(raw ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+  return s ? s.slice(0, 64) : null;
+}
 
 export type SignupResult =
   | { created: true; user: User; workspace: Workspace; token: string; expiresAt: string }
@@ -74,7 +82,7 @@ export async function sendMagicLink(
 export async function signup(db: Db, raw: unknown, baseUrl = 'http://localhost:3000'): Promise<SignupResult> {
   const parsed = signupSchema.safeParse(raw);
   if (!parsed.success) throw new AppError('invalid', 'invalid signup', parsed.error.issues);
-  const { email, name, password, workspaceName } = parsed.data;
+  const { email, name, password, workspaceName, referralSource } = parsed.data;
 
   if (password) {
     const problem = checkPasswordStrength(password);
@@ -99,7 +107,7 @@ export async function signup(db: Db, raw: unknown, baseUrl = 'http://localhost:3
     if (findUserByEmail(db, email)) {
       throw new AppError('conflict', 'an account with that email already exists');
     }
-    const user = createUser(db, { email, name, passwordHash });
+    const user = createUser(db, { email, name, passwordHash, referralSource: normalizeReferralSource(referralSource) });
     const wsName = workspaceName ?? workspaceNameFromEmail(email, name);
     const workspace = createWorkspace(db, { name: wsName, slug: slugify(wsName) });
     addMembership(db, workspace.id, user.id, 'owner');
@@ -148,7 +156,7 @@ export async function login(
 
   const session = createSession(db, record.id);
   return {
-    user: { id: record.id, email: record.email, name: record.name, emailVerifiedAt: record.emailVerifiedAt, createdAt: record.createdAt },
+    user: { id: record.id, email: record.email, name: record.name, emailVerifiedAt: record.emailVerifiedAt, referralSource: record.referralSource, createdAt: record.createdAt },
     workspaces: listWorkspacesForUser(db, record.id),
     token: session.token,
     expiresAt: session.expiresAt,

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo.ts';
 import { PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
+import { PageEvent } from '../components/PageEvent.tsx';
 
 export const metadata = buildMetadata({
   title: 'Pricing — Linda',
@@ -11,6 +12,8 @@ export const metadata = buildMetadata({
 export default function PricingPage() {
   return (
     <>
+      {/* LIN-111: pricing funnel entry — pricing_view → signup_start → signup_complete. */}
+      <PageEvent name="pricing_view" />
       <nav className="topbar">
         <div className="inner">
           <Link href="/" className="brand">

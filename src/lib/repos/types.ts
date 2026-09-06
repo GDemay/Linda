@@ -5,6 +5,8 @@ export type User = {
   email: string;
   name: string;
   emailVerifiedAt: string | null;
+  /** Signup channel tag (?ref= on /signup), e.g. 'reddit_community'. LIN-111. */
+  referralSource: string | null;
   createdAt: string;
 };
 

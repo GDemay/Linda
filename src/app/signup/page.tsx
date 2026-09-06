@@ -11,6 +11,9 @@ function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramState = searchParams.get('state') as JourneyState | null;
+  // LIN-111: signup channel tag (e.g. /signup?ref=reddit_community), persisted
+  // on the user record by the API. Keep this wiring through the LIN-105 rebuild.
+  const referralSource = searchParams.get('ref');
 
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +39,7 @@ function SignupContent() {
     try {
       const data = await api<{ created: boolean; workspace: { id: string } }>('/auth/signup', {
         // Password is optional: blank means "sign in by email link" (LIN-67 fix #5).
-        body: { ...form, password: form.password || undefined },
+        body: { ...form, password: form.password || undefined, referralSource: referralSource || undefined },
       });
       if (!data.created) {
         // Idempotent re-signup: the account exists, a sign-in link is on its way.
