@@ -23,6 +23,7 @@ export default function PricingPage() {
           <div className="row">
             <Link href="/pricing">Pricing</Link>
             <Link href="/changelog">Changelog</Link>
+            <Link href="/build">Build log</Link>
             <Link href="/trust">Trust</Link>
             <Link href="/login">Log in</Link>
             <Link href="/signup">
