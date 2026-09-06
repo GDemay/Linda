@@ -4,6 +4,18 @@ A team of AI agents that run a small company's phone, marketing, SEO, sales,
 finance, legal and hiring — and that a customer can set up **entirely on their
 own**, with nobody from our side involved.
 
+This repository is the source of the live hosted product — you don't have to
+run anything to try it:
+
+- **14-day free trial, no credit card, no onboarding call:**
+  [linda-llm-production.up.railway.app/signup](https://linda-llm-production.up.railway.app/signup?utm_source=github&utm_medium=readme&utm_campaign=lin141)
+- **Flat published pricing** ($49 / $149 / $399 per month, no "contact sales"):
+  [pricing](https://linda-llm-production.up.railway.app/pricing?utm_source=github&utm_medium=readme&utm_campaign=lin141)
+- **We build in public** — shipping log and funnel numbers:
+  [/build](https://linda-llm-production.up.railway.app/build?utm_source=github&utm_medium=readme&utm_campaign=lin141)
+
+To run the whole thing yourself instead:
+
 Everything runs locally. No Stripe, no Railway, no external services.
 
 ## Quick start
