@@ -34,6 +34,20 @@ describe('lead visibility — dedupe and audience split', () => {
     expect(isQaTestEmail('sarah.connor@skylineops.io')).toBe(false);
   });
 
+  it('strips invisible zero-width characters before matching (LIN-147)', () => {
+    const prev = process.env.LINDA_INTERNAL_EMAILS;
+    // A value pasted with trailing U+200B (as seen on Railway) must still
+    // exact-match the clean address — trim() does not remove zero-widths.
+    process.env.LINDA_INTERNAL_EMAILS = 'guillaumedemay@hotmail.fr​​';
+    try {
+      expect(leadAudience('guillaumedemay@hotmail.fr')).toBe('internal');
+      expect(leadAudience('guillaumedemay​@hotmail.fr')).toBe('internal');
+    } finally {
+      if (prev === undefined) delete process.env.LINDA_INTERNAL_EMAILS;
+      else process.env.LINDA_INTERNAL_EMAILS = prev;
+    }
+  });
+
   it('treats LINDA_INTERNAL_EMAILS entries as internal (normalized)', () => {
     const prev = process.env.LINDA_INTERNAL_EMAILS;
     process.env.LINDA_INTERNAL_EMAILS = 'Founder-Personal@Personal-Mail.com,, second@ex.co';

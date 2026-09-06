@@ -14,8 +14,17 @@ import { countTasks, listTasks } from '../repos/tasks.ts';
 // Lead hygiene: normalization, dedupe, internal/external tagging
 // -------------------------------------------------------------
 
+// Invisible-but-non-whitespace characters (zero-width spaces, BOM, soft
+// hyphen, word joiner) survive String.trim() and have bitten us once already:
+// a Railway variable pasted with trailing U+200Bs silently failed the
+// internal-allowlist exact match (LIN-147). Strip them everywhere.
+const INVISIBLE_CHARS = /[\u00AD\u200B\u200C\u200D\u2060\uFEFF]/g;
+
 export function normalizeEmail(email: string): string {
-  return String(email || '').trim().toLowerCase();
+  return String(email || '')
+    .replace(INVISIBLE_CHARS, '')
+    .trim()
+    .toLowerCase();
 }
 
 // QA/automation signups (LIN-147). `example.com` and the reserved `.example`
