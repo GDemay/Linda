@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo.ts';
-import { PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
+import { CONVERSION_COPY, PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
 import { PageEvent } from '../components/PageEvent.tsx';
 
 export const metadata = buildMetadata({
   title: 'Pricing — Linda',
-  description: 'Every tier has a published price. Self-serve all the way to the top.',
+  description:
+    'Client approvals and reporting without the Slack back-and-forth. From $49/mo flat — no per-minute billing. 14-day free trial, no credit card.',
   path: '/pricing',
 });
 
@@ -34,6 +35,9 @@ export default function PricingPage() {
       <main className="shell stack">
         <header className="stack" style={{ gap: 8, marginBottom: 8 }}>
           <h1>Pricing</h1>
+          <p style={{ fontSize: 18, maxWidth: 620, margin: 0 }}>
+            {CONVERSION_COPY.jtbdLine}.
+          </p>
           <p className="muted" style={{ fontSize: 16, maxWidth: 620 }}>
             No &quot;contact us,&quot; no promo codes. Every agent and every integration is on every tier
             — you pay for seats and volume, not for which coworker you&apos;re allowed to hire.
@@ -61,6 +65,14 @@ export default function PricingPage() {
               <Link href="/signup">
                 <button className="primary">Start free trial</button>
               </Link>
+              <p className="muted" style={{ margin: 0, textAlign: 'center', fontSize: 14 }}>
+                {CONVERSION_COPY.riskReversalLine}
+              </p>
+              {tier.key === 'starter' && (
+                <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+                  <b>{CONVERSION_COPY.flatPriceAnchor}.</b> {CONVERSION_COPY.flatPriceContrast}
+                </p>
+              )}
             </article>
           ))}
         </section>
