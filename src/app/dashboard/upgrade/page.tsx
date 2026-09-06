@@ -1,10 +1,18 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import {
+  ACTIVATION_RETRIES,
+  ACTIVATION_RETRY_MS,
+  waitForActivation,
+  type ActivationPhase,
+} from '@/lib/billing/activation.ts';
+import type { Invoice } from '@/lib/repos/types.ts';
 import { CONVERSION_COPY, PRICING_TIERS, type PricingTier } from '@/lib/pricing.ts';
+import { formatCost, formatDate } from '@/lib/ui/format.ts';
 import { PageEvent } from '@/app/components/PageEvent.tsx';
 
 /**
@@ -13,6 +21,10 @@ import { PageEvent } from '@/app/components/PageEvent.tsx';
  * login. Button click -> POST checkout -> redirect to the provider (Stripe)
  * or instant local fulfillment (dev); the provider is env-configured, the
  * UI never knows which one answered.
+ *
+ * The success view (LIN-142) never trusts the `checkout=success` param
+ * alone: it gates "plan is active" on the billing overview's subscription
+ * and polls briefly while the Stripe webhook is still in flight.
  */
 
 type BillingOverview = {
@@ -41,19 +53,63 @@ function Upgrade() {
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [activation, setActivation] = useState<ActivationPhase>('activating');
+  const [receipt, setReceipt] = useState<Invoice | null>(null);
 
-  const load = useCallback(async () => {
-    if (!workspaceId) return;
-    setOverview(await api<BillingOverview>(`/workspaces/${workspaceId}/billing`));
-  }, [workspaceId]);
+  // The plan the customer just bought, echoed back by the checkout
+  // provider's success URL — gates "plan is active" on the real subscription.
+  const expectedPlan = checkoutState === 'success' ? params.get('plan') : null;
 
   useEffect(() => {
     if (!workspaceId) {
       router.replace('/login');
       return;
     }
-    load().catch((err) => setError((err as Error).message));
-  }, [workspaceId, load, router]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const phase = await waitForActivation(
+          async () => {
+            const o = await api<BillingOverview>(`/workspaces/${workspaceId}/billing`);
+            if (!cancelled) setOverview(o);
+            return o.subscription;
+          },
+          {
+            expectedPlan,
+            // Only the success landing polls; other visits read billing once.
+            retries: checkoutState === 'success' ? ACTIVATION_RETRIES : 0,
+            intervalMs: ACTIVATION_RETRY_MS,
+            onPhase: (p) => {
+              if (!cancelled) setActivation(p);
+            },
+          },
+        );
+        if (!cancelled) setActivation(phase);
+      } catch (err) {
+        if (!cancelled) setError((err as Error).message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, checkoutState, expectedPlan, router]);
+
+  // Once the plan is genuinely live, show the purchase as a receipt —
+  // proof the ledger recorded it, never a substitute for the gate above.
+  useEffect(() => {
+    if (checkoutState !== 'success' || !workspaceId || activation !== 'active') return;
+    let cancelled = false;
+    api<{ invoices: Invoice[] }>(`/workspaces/${workspaceId}/billing/invoices`)
+      .then((res) => {
+        if (!cancelled && res.invoices.length > 0) setReceipt(res.invoices[0]);
+      })
+      .catch(() => {
+        /* A receipt is a nicety — never fail the success view over it. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutState, workspaceId, activation]);
 
   async function upgrade(tier: PricingTier) {
     if (!workspaceId) return;
@@ -101,12 +157,35 @@ function Upgrade() {
       </nav>
 
       <main className="shell stack">
-        {checkoutState === 'success' && (
+        {checkoutState === 'success' && activation === 'active' && (
           <div className="card" style={{ borderColor: 'var(--ok, green)' }}>
             <b>Payment received — you&apos;re on.</b>{' '}
             {pausedByBilling.length > 0
               ? ` Your ${pausedByBilling.length} paused agent${pausedByBilling.length === 1 ? ' is' : 's are'} resuming now.`
               : ' Your plan is active.'}
+            {receipt && (
+              <p className="muted" style={{ margin: '6px 0 0' }}>
+                Receipt {receipt.number} — {formatCost(receipt.totalUsd)}{' '}
+                {receipt.paidAt ? `paid ${formatDate(receipt.paidAt)}` : `(status: ${receipt.status})`}.
+                All receipts stay available in your billing history.
+              </p>
+            )}
+          </div>
+        )}
+        {checkoutState === 'success' && activation === 'activating' && !error && (
+          <div className="card" aria-live="polite" style={{ borderColor: 'var(--ok, green)' }}>
+            <b>Payment received — activating…</b> We&apos;re confirming your payment now; this page
+            updates the moment your plan goes live (usually a few seconds). Nothing more to do —
+            your card has been charged and nothing expires meanwhile.
+          </div>
+        )}
+        {checkoutState === 'success' && activation === 'delayed' && (
+          <div className="card" aria-live="polite" style={{ borderColor: 'var(--warn, orange)' }}>
+            <b>Payment received — activation is taking longer than usual.</b> Your card was charged
+            and your subscription is being confirmed; bank confirmation can occasionally take a
+            minute. Refresh this page in a moment — if it still shows a trial, reply to your
+            welcome email and we&apos;ll sort it immediately. You will never be charged twice for
+            the same purchase.
           </div>
         )}
         {checkoutState === 'cancelled' && (
