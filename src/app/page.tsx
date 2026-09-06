@@ -52,25 +52,37 @@ export default function Home() {
             prospecting, content, SEO, support, screening, and admin. You sign up, connect your tools,
             and it starts. There&apos;s no setup call, because there&apos;s nothing for us to set up.
           </p>
-          <div className="row" style={{ marginTop: 12, justifyContent: 'center', alignItems: 'center' }}>
+          {/* LIN-204: one obvious primary CTA. The old row put a price anchor
+              and a second button next to the trial CTA — three competing
+              elements. Pricing is now a quiet text link; the anchor and risk
+              reversal live in the microcopy below the button. */}
+          <div className="row" style={{ marginTop: 12, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
             <Link href="/signup">
               <button className="primary" style={{ padding: '12px 28px', fontSize: 16 }}>
                 Start free 14-day trial
               </button>
             </Link>
-            <span style={{ fontSize: 15 }}>
-              <b>{CONVERSION_COPY.flatPriceAnchor}</b>
-            </span>
-            <Link href="/pricing">
-              <button style={{ padding: '12px 24px', fontSize: 16 }}>
-                View transparent pricing
-              </button>
+            <Link href="/pricing" style={{ fontSize: 15 }}>
+              See pricing →
             </Link>
           </div>
           <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>
             <span className="muted" style={{ fontSize: 14 }}>
-              {CONVERSION_COPY.riskReversalLine}
+              {CONVERSION_COPY.flatPriceAnchor} · no credit card · 30-second setup
             </span>
+          </div>
+          {/* LIN-204: verifiable trust signals instead of volume claims we
+              can't back (2 external signups at time of writing). */}
+          <div className="row" style={{ justifyContent: 'center', marginTop: 12, gap: 14 }}>
+            <Link href="/build" className="muted" style={{ fontSize: 13 }}>
+              Public build log
+            </Link>
+            <Link href="/changelog" className="muted" style={{ fontSize: 13 }}>
+              Changelog
+            </Link>
+            <Link href="/trust" className="muted" style={{ fontSize: 13 }}>
+              Trust & security
+            </Link>
           </div>
         </header>
 
@@ -187,7 +199,10 @@ export default function Home() {
         <section className="card stack" style={{ gap: 16, padding: 36, textAlign: 'center', alignItems: 'center' }}>
           <h2>You could be running before this tab closes.</h2>
           <p className="muted" style={{ maxWidth: 560, fontSize: 16 }}>
-            Every screen is built. Every workflow completes. Join hundreds of founders and small teams saving dozens of hours each week.
+            {/* LIN-204: every claim here is checkable — no signup-count claims
+                the funnel data can't back. */}
+            Every feature on this page is live in production — no waitlist, no vaporware. The{' '}
+            <Link href="/build">public build log</Link> shows exactly what shipped, and when.
           </p>
           <div className="row" style={{ marginTop: 8 }}>
             <Link href="/signup">
