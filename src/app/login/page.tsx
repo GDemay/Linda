@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
@@ -13,38 +13,35 @@ function LoginContent() {
   // LIN-118: ?state= journey override is QA-harness-only; ignore it for customers.
   const paramState = journeySpecEnabled ? (searchParams.get('state') as JourneyState | null) : null;
   const linkError = searchParams.get('error');
-  // LIN-120: a raw token still attached to /login means the link never
-  // verified — valid tokens go through /api/auth/magic-link/verify and are
-  // consumed there. Anything left here is invalid or expired, so say so
-  // instead of rendering a form that ignores the click.
-  const invalidLinkArrival = linkError === 'invalid_link' || searchParams.get('token') !== null;
+  // LIN-120: a token landing on /login directly (old-format or hand-edited
+  // links) is forwarded through the single verification path so a dead link
+  // bounces back as an explicit error instead of the silent plain form.
+  const linkToken = searchParams.get('token');
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState<string | null>(
-    invalidLinkArrival
-      ? 'That sign-in link is invalid or has expired — single-use links last 15 minutes. Request a fresh one below.'
-      : null,
+    linkError === 'invalid_link' ? 'That sign-in link has expired or was already used. Request a fresh one below.' : null,
   );
-  const [linkExpired, setLinkExpired] = useState(invalidLinkArrival);
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [mode, setMode] = useState<'link' | 'password'>('link');
   const [showDestructive, setShowDestructive] = useState(false);
   const [customState, setCustomState] = useState<JourneyState>(paramState || 'live');
-  const emailRef = useRef<HTMLInputElement>(null);
-
-  // LIN-120: someone whose link just failed is one click from churning —
-  // put the cursor where their next action is.
-  useEffect(() => {
-    if (invalidLinkArrival) emailRef.current?.focus();
-  }, [invalidLinkArrival]);
 
   useEffect(() => {
     if (paramState) {
       setCustomState(paramState);
     }
   }, [paramState]);
+
+  // LIN-120: forward ?token= through the verify route — valid links sign the
+  // user in, dead ones return as ?error=invalid_link and get the banner below.
+  useEffect(() => {
+    if (linkToken) {
+      window.location.replace(`/api/auth/magic-link/verify?token=${encodeURIComponent(linkToken)}`);
+    }
+  }, [linkToken]);
 
   /** Magic-link flow (LIN-49 fix #1): one field, one button, check your inbox. */
   async function sendLink(e?: React.FormEvent) {
@@ -54,7 +51,6 @@ function LoginContent() {
     try {
       await api('/auth/magic-link', { body: { email: form.email } });
       setSentTo(form.email);
-      setLinkExpired(false);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -84,15 +80,17 @@ function LoginContent() {
   const effectiveState: JourneyState =
     customState !== 'live'
       ? customState
-      : busy
-        ? 'loading'
-        : error
-          ? 'error'
-          : showDestructive
-            ? 'destructive-confirm'
-            : success
-              ? 'success'
-              : 'live';
+      : linkToken
+        ? 'loading' // LIN-120: token is being verified — don't flash the form
+        : busy
+          ? 'loading'
+          : error
+            ? 'error'
+            : showDestructive
+              ? 'destructive-confirm'
+              : success
+                ? 'success'
+                : 'live';
 
   function handleClear() {
     setForm({ email: '', password: '' });
@@ -141,7 +139,7 @@ function LoginContent() {
                   <div className="l-skeleton" style={{ width: '100%', height: '40px' }} />
                   <div className="l-skeleton" style={{ width: '100%', height: '46px', marginTop: 'var(--space-4)' }} />
                   <p className="l-xs l-muted" style={{ margin: 0 }}>
-                    Skeletons match the form layout so nothing jumps on load.
+                    {linkToken ? 'Checking your sign-in link…' : 'Skeletons match the form layout so nothing jumps on load.'}
                   </p>
                 </div>
               ) : effectiveState === 'destructive-confirm' ? (
@@ -183,7 +181,7 @@ function LoginContent() {
                       <div className="l-banner l-banner--danger">
                         <div>
                           <b>
-                            {linkExpired
+                            {error?.startsWith('That sign-in link')
                               ? 'That sign-in link is invalid or expired.'
                               : mode === 'link'
                                 ? 'Could not send the link.'
@@ -252,7 +250,6 @@ function LoginContent() {
                         Work email
                       </label>
                       <input
-                        ref={emailRef}
                         className="l-input"
                         id="email"
                         type="email"
@@ -260,6 +257,8 @@ function LoginContent() {
                         value={form.email}
                         onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                         autoComplete="email"
+                        // LIN-120: after a dead link, the user's next step is requesting a fresh one.
+                        autoFocus={Boolean(linkError)}
                         placeholder="you@company.com"
                       />
                     </div>
