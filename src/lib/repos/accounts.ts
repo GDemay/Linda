@@ -27,6 +27,7 @@ function toUser(r: Row): User {
     email: r.email,
     name: r.name,
     emailVerifiedAt: r.email_verified_at ?? null,
+    referralSource: r.referral_source ?? null,
     createdAt: r.created_at,
   };
 }
@@ -37,7 +38,7 @@ export function normalizeEmail(email: string): string {
 
 export function createUser(
   db: Db,
-  input: { email: string; name: string; passwordHash: string },
+  input: { email: string; name: string; passwordHash: string; referralSource?: string | null },
 ): User {
   const ts = nowIso();
   const row = {
@@ -46,13 +47,14 @@ export function createUser(
     email_lower: normalizeEmail(input.email),
     name: input.name.trim(),
     password_hash: input.passwordHash,
+    referral_source: input.referralSource ?? null,
     created_at: ts,
     updated_at: ts,
   };
   db.prepare(
-    `INSERT INTO users (id, email, email_lower, name, password_hash, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(row.id, row.email, row.email_lower, row.name, row.password_hash, row.created_at, row.updated_at);
+    `INSERT INTO users (id, email, email_lower, name, password_hash, referral_source, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(row.id, row.email, row.email_lower, row.name, row.password_hash, row.referral_source, row.created_at, row.updated_at);
   return toUser({ ...row, email_verified_at: null });
 }
 

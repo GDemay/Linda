@@ -55,6 +55,13 @@ export type Lead = {
   /** 'active_trial' mirrors the prototype's trial status; 'active' otherwise. */
   status: 'active_trial' | 'active';
   audience: LeadAudience;
+  /** Signup channel tag persisted at signup (LIN-111), e.g. 'reddit_community'. */
+  referralSource: string | null;
+  /**
+   * True once the user has consumed a magic link — the strongest available
+   * signal that the email address is reachable for outreach (LIN-111).
+   */
+  emailVerified: boolean;
   createdAt: string;
   workspaceId: string | null;
   onboardingStep: string | null;
@@ -70,6 +77,8 @@ type LeadRow = {
   plan: string | null;
   onboarding_step: string | null;
   legal_name: string | null;
+  referral_source: string | null;
+  email_verified_at: string | null;
 };
 
 /**
@@ -82,6 +91,7 @@ export function listLeads(db: Db): Lead[] {
   const rows = db
     .prepare(
       `SELECT u.id AS user_id, u.email_lower, u.name, u.created_at AS user_created_at,
+              u.referral_source, u.email_verified_at,
               w.id AS workspace_id, w.name AS workspace_name, w.plan, w.onboarding_step,
               cp.legal_name
        FROM users u
@@ -105,6 +115,8 @@ export function listLeads(db: Db): Lead[] {
       plan: r.plan || 'trial',
       status: r.workspace_id ? (isTrialPlan(r.plan ?? 'trial') ? 'active_trial' : 'active') : 'active_trial',
       audience: leadAudience(key),
+      referralSource: r.referral_source ?? null,
+      emailVerified: !!r.email_verified_at,
       createdAt: r.user_created_at,
       workspaceId: r.workspace_id,
       onboardingStep: r.onboarding_step,
@@ -156,6 +168,12 @@ export function leadStatsSummary(db: Db): LeadStatsSummary {
  */
 export type LeadStatsDetail = {
   recentSignups: Lead[];
+  /**
+   * LIN-111: the full external contact list for trialist outreach (P1), not
+   * just the five most recent signups. Same PII class as recentSignups —
+   * admin-gated.
+   */
+  externalLeads: Lead[];
   recentTasks: {
     id: string;
     workspaceId: string;
@@ -173,6 +191,7 @@ export function leadStatsDetail(db: Db): LeadStatsDetail {
 
   return {
     recentSignups: leads.slice(0, 5),
+    externalLeads: leads.filter((l) => l.audience === 'external'),
     recentTasks: tasks.map((t) => ({
       id: t.id,
       workspaceId: t.workspaceId,

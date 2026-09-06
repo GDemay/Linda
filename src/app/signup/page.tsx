@@ -39,7 +39,15 @@ const STEPS: { n: string; title: string; body: string }[] = [
   },
 ];
 
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  // LIN-111: the signup channel tag (e.g. /signup?ref=reddit_community) is
+  // read server-side — SignupForm must never call useSearchParams — and
+  // flows into the signup POST, where the API persists it on the user.
+  const { ref } = await searchParams;
   return (
     <>
       <PageEvent name="signup_view" />
@@ -70,7 +78,7 @@ export default function SignupPage() {
               </p>
             </header>
 
-            <SignupForm />
+            <SignupForm referralSource={ref ?? null} />
 
             <p className="muted" style={{ fontSize: 12, margin: 0 }}>
               By continuing you agree to the Terms and Privacy Policy. Linda never sends anything from your accounts

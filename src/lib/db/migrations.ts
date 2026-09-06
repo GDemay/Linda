@@ -371,6 +371,17 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX agent_memories_workspace_idx ON agent_memories(workspace_id, agent_key, created_at DESC);
     `,
   },
+  {
+    // LIN-111: attribute later funnel movement to the signup channel. The
+    // referral tag (e.g. reddit_community) arrives with the signup request
+    // (?ref= on /signup) and is persisted on the user so /api/leads and the
+    // admin stats digest can group cohorts by source.
+    id: 8,
+    name: 'user_referral_source',
+    up: `
+      ALTER TABLE users ADD COLUMN referral_source TEXT;
+    `,
+  },
 ];
 type MigrateDb = {
   exec(sql: string): void;

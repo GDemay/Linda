@@ -29,7 +29,7 @@ function validate(form: { name: string; email: string; password: string }): Fiel
   return errors;
 }
 
-export function SignupForm() {
+export function SignupForm({ referralSource = null }: { referralSource?: string | null }) {
   const router = useRouter();
 
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -69,7 +69,14 @@ export function SignupForm() {
     try {
       const data = await api<{ created: boolean; workspace: { id: string } }>('/auth/signup', {
         // Password is optional: blank means "sign in by email link" (LIN-67 fix #5).
-        body: { ...form, email: form.email.trim(), name: form.name.trim(), password: form.password || undefined },
+        // referralSource comes from /signup?ref=… and is persisted on the user (LIN-111).
+        body: {
+          ...form,
+          email: form.email.trim(),
+          name: form.name.trim(),
+          password: form.password || undefined,
+          referralSource: referralSource || undefined,
+        },
       });
       if (!data.created) {
         // Idempotent re-signup: the account exists, a sign-in link is on its way.
