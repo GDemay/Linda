@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { GET as meGET } from '../src/app/api/auth/me/route.ts';
+import { getDb, resetDbSingleton } from '../src/lib/db/index.ts';
 import { db, newAccount, uniqueEmail, VALID_PASSWORD } from './helpers.ts';
 import {
   authenticate,
@@ -253,5 +255,57 @@ describe('workspace authorization', () => {
   it('rejects an unauthenticated caller before touching the workspace', () => {
     const d = db();
     expect(() => authorize(d, null, 'whatever')).toThrow(/authentication required/);
+  });
+});
+
+describe('GET /api/auth/me anonymous probe (LIN-94)', () => {
+  // The public trust page probes this endpoint on every visit; a 401 there
+  // logs a console error for every anonymous visitor. It must answer 200
+  // with user:null instead.
+  it('returns 200 + user null when unauthenticated', async () => {
+    const prev = process.env.LINDA_DB_PATH;
+    process.env.LINDA_DB_PATH = ':memory:';
+    resetDbSingleton();
+    try {
+      const res = await meGET(new Request('http://localhost/api/auth/me'), undefined);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { user: unknown; workspaces: unknown[] };
+      expect(body.user).toBeNull();
+      expect(body.workspaces).toEqual([]);
+    } finally {
+      resetDbSingleton();
+      if (prev === undefined) delete process.env.LINDA_DB_PATH;
+      else process.env.LINDA_DB_PATH = prev;
+    }
+  });
+
+  it('still returns the session user when authenticated', async () => {
+    const prev = process.env.LINDA_DB_PATH;
+    process.env.LINDA_DB_PATH = ':memory:';
+    resetDbSingleton();
+    try {
+      const acct = await signup(getDb(), {
+        email: uniqueEmail(),
+        name: 'Me Probe',
+        password: VALID_PASSWORD,
+        workspaceName: 'Me Probe Co',
+      });
+      // Fresh email, so this is the created:true variant that carries a token.
+      if (!acct.created) throw new Error('expected a new signup');
+      const res = await meGET(
+        new Request('http://localhost/api/auth/me', {
+          headers: { cookie: `linda_session=${acct.token}` },
+        }),
+        undefined,
+      );
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { user: { email: string }; workspaces: unknown[] };
+      expect(body.user.email).toBeTruthy();
+      expect(body.workspaces.length).toBeGreaterThan(0);
+    } finally {
+      resetDbSingleton();
+      if (prev === undefined) delete process.env.LINDA_DB_PATH;
+      else process.env.LINDA_DB_PATH = prev;
+    }
   });
 });

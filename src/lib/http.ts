@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb } from './db/index.ts';
 import { authorize, authenticate } from './auth/service.ts';
-import { AppError, ERROR_STATUS, type Role } from './repos/types.ts';
+import { resolveSession } from './repos/accounts.ts';
+import { AppError, ERROR_STATUS, type Role, type User } from './repos/types.ts';
 
 export const SESSION_COOKIE = 'linda_session';
 
@@ -27,7 +28,13 @@ export function sessionCookie(token: string, expiresAt: string): string {
     'SameSite=Lax',
     `Expires=${new Date(expiresAt).toUTCString()}`,
   ];
-  if (process.env.NODE_ENV === 'production') attrs.push('Secure');
+  // `Secure` is right for the https deployment, but `next start` also runs
+  // with NODE_ENV=production and serves plain http on localhost, where the
+  // cookie can be dropped (it broke the Playwright UI-QA suite's API flow).
+  // Local e2e/UI-QA servers set LINDA_INSECURE_COOKIES=1 to keep it off.
+  if (process.env.NODE_ENV === 'production' && !process.env.LINDA_INSECURE_COOKIES) {
+    attrs.push('Secure');
+  }
   return attrs.join('; ');
 }
 
@@ -81,6 +88,17 @@ export function publicOrigin(req: Request): string {
 /** Authenticated caller, no workspace scope. */
 export function requireUser(req: Request) {
   return authenticate(getDb(), tokenFrom(req));
+}
+
+/**
+ * Caller if a valid session is present, null otherwise — for endpoints a
+ * public page probes (e.g. GET /api/auth/me) where a 401 would surface as a
+ * console error for every anonymous visitor.
+ */
+export function optionalUser(req: Request): User | null {
+  const token = tokenFrom(req);
+  if (!token) return null;
+  return resolveSession(getDb(), token);
 }
 
 /** Authenticated caller scoped to a workspace, with the role floor enforced. */

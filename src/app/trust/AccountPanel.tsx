@@ -21,12 +21,17 @@ export default function AccountPanel() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<Me>('/auth/me')
+    api<Me | { user: null }>('/auth/me')
       .then((data) => {
-        setMe(data);
+        // Anonymous visitors get 200 + user:null (no 401 console noise).
+        if (!('user' in data) || data.user === null) {
+          setState('signed-out');
+          return;
+        }
+        setMe(data as Me);
         setState('ready');
       })
-      .catch(() => setState('signed-out')); // not logged in — nothing to show
+      .catch(() => setState('signed-out')); // network failure — nothing to show
   }, []);
 
   async function deleteAccount() {

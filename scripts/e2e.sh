@@ -35,9 +35,10 @@ WS=$(req POST /auth/signup "{\"email\":\"$EMAIL\",\"name\":\"Ada Lovelace\",\"pa
 [ -n "$WS" ] || fail 'no workspace returned'
 echo "workspace=$WS"
 
-step 'duplicate signup is rejected'
-[ "$(code POST /auth/signup "{\"email\":\"$EMAIL\",\"name\":\"X\",\"password\":\"$PASS\"}")" = 409 ] \
-  || fail 'duplicate email was not 409'
+step 'duplicate signup is idempotent (LIN-67), not a new account'
+DUP=$(req POST /auth/signup "{\"email\":\"$EMAIL\",\"name\":\"X\",\"password\":\"$PASS\"}")
+[ "$(echo "$DUP" | jq_get "d['created']")" = False ] || fail 'duplicate signup created a second account'
+[ "$(echo "$DUP" | jq_get "d['workspace']['id']")" = "$WS" ] || fail 'duplicate signup returned a different workspace'
 
 step 'weak password is rejected'
 [ "$(code POST /auth/signup '{"email":"weak@example.com","name":"X","password":"short"}')" = 422 ] \
@@ -126,6 +127,46 @@ LOGIN=$(req POST /auth/login "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | j
 step 'wrong password is rejected'
 [ "$(code POST /auth/login "{\"email\":\"$EMAIL\",\"password\":\"wrong-password-x\"}")" = 401 ] \
   || fail 'wrong password was not 401'
+
+# ── UI invariants (LIN-94) ─────────────────────────────────────────────
+# Rendered-HTML quality gates over every public page: catch the bug class
+# where raw values (ISO timestamps, [object Object], undefined, Invalid
+# Date) leak into what users see. Unit-level twins live in
+# tests/ui-quality.test.ts; this step checks the real server output.
+step 'UI invariants on rendered pages'
+ui_page() { # path
+  local body code
+  code=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE$1")
+  [ "$code" = 200 ] || fail "$1 returned $code, expected 200"
+  body=$(curl -sS "$BASE$1")
+  if printf '%s' "$body" | grep -Eq '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'; then
+    fail "$1 leaks a raw ISO timestamp into the page"
+  fi
+  for leak in '\[object Object\]' '>undefined<' '>NaN<' 'Invalid Date'; do
+    if printf '%s' "$body" | grep -Eq "$leak"; then
+      fail "$1 renders garbage ($leak)"
+    fi
+  done
+  if printf '%s' "$body" | grep -q '<img' && \
+     [ "$(printf '%s' "$body" | grep -o '<img' | wc -l)" != "$(printf '%s' "$body" | grep -o '<img[^>]*alt=' | wc -l)" ]; then
+    fail "$1 has <img> tags without alt attributes"
+  fi
+}
+for path in / /login /signup /pricing /trust /changelog; do
+  ui_page "$path"
+done
+# Authenticated dashboard: reuse the logged-in session jar from the step above.
+DASH_CODE=$(curl -sS -o /dev/null -w '%{http_code}' -b "$JAR" "$BASE/dashboard")
+[ "$DASH_CODE" = 200 ] || fail "/dashboard returned $DASH_CODE, expected 200"
+DASH_BODY=$(curl -sS -b "$JAR" "$BASE/dashboard")
+if printf '%s' "$DASH_BODY" | grep -Eq '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'; then
+  fail '/dashboard leaks a raw ISO timestamp into the page'
+fi
+for leak in '\[object Object\]' '>undefined<' '>NaN<' 'Invalid Date'; do
+  if printf '%s' "$DASH_BODY" | grep -Eq "$leak"; then
+    fail "/dashboard renders garbage ($leak)"
+  fi
+done
 
 rm -f "$JAR" "$OTHER_JAR"
 printf '\n\nALL END-TO-END CHECKS PASSED\n'

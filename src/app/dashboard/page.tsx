@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { formatDate, formatDateTime, formatTime } from '@/lib/ui/format.ts';
 import { MemoryPanel, type Memory } from '@/app/components/MemoryPanel.tsx';
 
 type Overview = {
@@ -287,6 +288,10 @@ function Dashboard() {
     setRuns(runsRes.runs);
     setActivity(activityRes.events);
     setTasks(tasksRes.tasks);
+    // The deliverable card is the only surface that shows a task's output.
+    // Without this, a reload or fresh login silently loses the latest
+    // deliverable (found by the LIN-94 UI-quality gate).
+    setLatestTask((current) => current ?? tasksRes.tasks[0] ?? null);
     setApprovals(approvalsRes.approvals);
     setKnowledge(knowledgeRes.documents);
     setMemories(memoriesRes.memories);
@@ -377,14 +382,19 @@ function Dashboard() {
   }
 
   function submitTask() {
-    if (!taskAgent || !taskInput.trim()) return;
+    // `activeAgentKey` (declared below with the other derived values) is the
+    // agent the composer actually shows: `taskAgent` stays empty until the
+    // user touches the dropdown, and guarding on it made the Ask button a
+    // silent no-op for a freshly loaded composer (LIN-94).
+    const agent = taskAgent || activeAgentKey;
+    if (!agent || !taskInput.trim()) return;
     return withActionError(async () => {
       setSubmittingTask(true);
       try {
         const res = await api<{ task: Task }>('/tasks', {
           body: {
             workspaceId,
-            agent: taskAgent,
+            agent,
             template: taskTemplate || undefined,
             input: taskInput.trim(),
           },
@@ -633,7 +643,7 @@ function Dashboard() {
                           </td>
                           <td>{ap.summary}</td>
                           <td className="l-muted">
-                            {agentName(ap.workspaceAgentId)} · {ap.actionKind} · {new Date(ap.createdAt).toLocaleString()}
+                            {agentName(ap.workspaceAgentId)} · {ap.actionKind} · {formatDateTime(ap.createdAt)}
                           </td>
                           <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                             <button
@@ -855,7 +865,7 @@ function Dashboard() {
                         <tr key={t.id}>
                           <td>{t.title}</td>
                           <td className="l-muted">{persona(t.agent)} · {t.category}</td>
-                          <td className="l-muted l-num">{new Date(t.createdAt).toLocaleString()}</td>
+                          <td className="l-muted l-num">{formatDateTime(t.createdAt)}</td>
                           <td>{statusBadge(t.status)}</td>
                         </tr>
                       ))}
@@ -925,7 +935,7 @@ function Dashboard() {
                           {doc.title}
                           <span className="l-xs l-muted" style={{ marginLeft: 'var(--space-2)' }}>
                             {doc.status === 'ready'
-                              ? `${doc.chunkCount} chunks${doc.agentKeys.length ? ` · ${doc.agentKeys.length} agent(s)` : ' · everyone'}${doc.lastUsedAt ? ` · last used ${new Date(doc.lastUsedAt).toLocaleDateString()}` : ''}`
+                              ? `${doc.chunkCount} chunks${doc.agentKeys.length ? ` · ${doc.agentKeys.length} agent(s)` : ' · everyone'}${doc.lastUsedAt ? ` · last used ${formatDate(doc.lastUsedAt)}` : ''}`
                               : `couldn't be read${doc.error ? `: ${doc.error}` : ''}`}
                           </span>
                         </span>
@@ -1088,7 +1098,7 @@ function Dashboard() {
                               {r.error && <div className="l-xs" style={{ color: 'var(--danger)' }}>{r.error}</div>}
                             </td>
                             <td className="l-muted l-num">
-                              {r.trigger} · {new Date(r.createdAt).toLocaleString()}
+                              {r.trigger} · {formatDateTime(r.createdAt)}
                             </td>
                             <td>{statusBadge(r.status)}</td>
                           </tr>
@@ -1120,7 +1130,7 @@ function Dashboard() {
                         <div className="l-sm" style={{ color: 'var(--text-primary)' }}>{e.summary}</div>
                         <div className="l-xs l-muted">{e.kind}</div>
                       </div>
-                      <span className="l-xs l-muted l-num">{new Date(e.createdAt).toLocaleTimeString()}</span>
+                      <span className="l-xs l-muted l-num">{formatTime(e.createdAt)}</span>
                     </div>
                   ))}
                 </div>

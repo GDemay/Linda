@@ -18,3 +18,21 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # Rendered-UI quality gate (LIN-94): real browser, real pages — console
+  # errors, raw markup in visible text, horizontal overflow at desktop +
+  # mobile widths, failing requests, missing alt text, and an HTML-injection
+  # regression on the deliverable surface. Requires the build from the job above.
+  ui:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:ui
