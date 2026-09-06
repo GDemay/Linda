@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { CONVERSION_COPY } from '@/lib/pricing.ts';
 
 /**
  * Interactive half of the signup conversion page (LIN-105).
@@ -228,9 +229,9 @@ export function SignupForm({ referralSource = null }: { referralSource?: string 
         >
           {busy ? 'Creating your workspace…' : 'Start my free 14-day trial →'}
         </button>
-        <div className="l-row" style={{ justifyContent: 'center', marginTop: 'var(--space-3)' }}>
+        <div className="l-row" style={{ justifyContent: 'center', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
           <span className="l-xs l-muted">
-            ✓ No credit card &nbsp;·&nbsp; ✓ 14-day trial &nbsp;·&nbsp; ✓ All 8 agents included
+            {CONVERSION_COPY.riskReversalLine} &nbsp;·&nbsp; <b>{CONVERSION_COPY.flatPriceAnchor}</b>
           </span>
         </div>
         <p className="l-sm" style={{ marginTop: 'var(--space-3)', textAlign: 'center' }}>
