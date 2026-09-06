@@ -40,9 +40,15 @@ export default defineConfig({
   ],
   webServer: {
     command: `rm -f ${DB} && npx next start -p ${PORT} -H 127.0.0.1`,
+    // CHECKOUT_PROVIDER=local is test mode (LIN-205): the local billing
+    // provider fulfills instantly in SQLite and never contacts a card
+    // network. Without it the default resolves to 'none' and the upgrade
+    // buttons render disabled — useless for funnel QA.
     env: { LINDA_DB_PATH: DB, LINDA_INSECURE_COOKIES: '1', CHECKOUT_PROVIDER: 'local' },
     url: `http://127.0.0.1:${PORT}/api/catalog`,
     reuseExistingServer: false,
+    // This box runs several agents' builds at once; under that load a cold
+    // `next start` can legitimately take over a minute.
     timeout: 180_000,
   },
 });
