@@ -3,6 +3,7 @@ import { getDb } from './db/index.ts';
 import { authorize, authenticate } from './auth/service.ts';
 import { resolveSession } from './repos/accounts.ts';
 import { AppError, ERROR_STATUS, type Role, type User } from './repos/types.ts';
+import { captureServerError } from './observability/sentry.ts';
 
 export const SESSION_COOKIE = 'linda_session';
 
@@ -59,6 +60,9 @@ export function handle(fn: (req: Request, ctx: any) => Promise<Response> | Respo
         return json({ error: err.message, code: err.code, details: err.details }, { status: ERROR_STATUS[err.code] });
       }
       console.error('[linda] unhandled error', err);
+      // LIN-167: forward unexpected server errors to the env-gated Sentry
+      // sink. No-op (no SDK import) until SENTRY_DSN is set.
+      void captureServerError(err);
       return json({ error: 'internal error', code: 'internal' }, { status: 500 });
     }
   };

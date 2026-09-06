@@ -22,6 +22,7 @@ import {
   upsertCompanyProfile,
 } from '../repos/accounts.ts';
 import { createWorkflow, listWorkflows, recordActivity } from '../repos/workflows.ts';
+import { recordEvent } from '../analytics/events.ts';
 import { listDocuments } from '../repos/knowledge.ts';
 import { uploadDocument } from '../knowledge/index.ts';
 import { definitionsForAgent, getWorkflowDefinition } from '../workflows/definitions.ts';
@@ -89,6 +90,9 @@ export function submitCompanyProfile(
   return transaction(db, () => {
     // Preserve goals if the user comes back and edits the profile later.
     const existing = findCompanyProfile(db, workspaceId);
+    // LIN-167 activation funnel: the first profile save is the customer's
+    // first real onboarding action — that's "onboarding started", not a view.
+    if (!existing) recordEvent(db, 'onboarding_started', { workspaceId });
     upsertCompanyProfile(db, workspaceId, { ...parsed.data, goals: existing?.goals ?? [] });
     advance(db, ws, 'pick_goals');
     recordActivity(db, {
@@ -557,6 +561,8 @@ export async function completeOnboarding(
   }
 
   setOnboardingStep(db, workspaceId, 'done');
+  // LIN-167 activation funnel: the 'done' transition is "onboarding finished".
+  recordEvent(db, 'onboarding_completed', { workspaceId });
   recordActivity(db, {
     workspaceId,
     actorType: 'system',
