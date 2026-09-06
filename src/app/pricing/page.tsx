@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { buildMetadata, productJsonLd } from '@/lib/seo.ts';
 import { JsonLd } from '../components/JsonLd.tsx';
-import { CONVERSION_COPY, PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
+import { CONVERSION_COPY, CREDIT_CONVERSION, PRICING_COMMON, PRICING_TIERS } from '@/lib/pricing.ts';
 import { PageEvent } from '../components/PageEvent.tsx';
 
 export const metadata = buildMetadata({
@@ -46,6 +46,11 @@ export default function PricingPage() {
             No &quot;contact us,&quot; no promo codes. Every agent and every integration is on every tier
             — you pay for seats and volume, not for which coworker you&apos;re allowed to hire.
           </p>
+          {/* LIN-204: the trial terms belong at the top, next to the decision —
+              not buried below the tier cards. */}
+          <p style={{ fontSize: 15, margin: 0 }}>
+            <b>{CONVERSION_COPY.riskReversalLine}.</b>
+          </p>
         </header>
 
         <section className="grid">
@@ -64,6 +69,13 @@ export default function PricingPage() {
               </p>
               <p className="muted" style={{ margin: 0 }}>
                 ${tier.annualUsd}/year billed annually — two months free.
+              </p>
+              {/* LIN-204: publish the included monthly credits per card —
+                  entitlements already read from these numbers (LIN-131), so
+                  the card states what the plan actually ships with instead of
+                  deferring to "caps being finalized." */}
+              <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+                Includes {tier.monthlyCredits.toLocaleString('en-US')} task credits/mo.
               </p>
               <p className="muted">{tier.blurb}</p>
               <Link href="/signup">
@@ -92,10 +104,46 @@ export default function PricingPage() {
             </li>
           </ul>
           <p className="muted">
-            Task volume caps by tier are being finalized against per-task cost data; fair use applies
-            until published. Above Scale&apos;s 20-seat cap, that&apos;s a custom deal — reach out — but
-            every published tier here is self-serve, start to finish.
+            {/* LIN-204: replaced "caps being finalized / fair use applies" —
+                vagueness reads as a hidden limit. The credit allowance is
+                published per card above; this states the conversion and the
+                cap honestly. */}
+            Volume is measured in task credits: 1 credit ≈ {CREDIT_CONVERSION.tokensPerCredit.toLocaleString('en-US')}{' '}
+            tokens, overage is ${CREDIT_CONVERSION.overageUsdPerCredit}/credit, and your workspace spend
+            cap bounds the total — no surprise bills. Above Scale&apos;s 20 seats it&apos;s a custom deal,
+            but every published tier here is self-serve, start to finish.
           </p>
+        </section>
+
+        {/* LIN-204: answer the two pre-signup questions support would get, in
+            code, with no human on our side. Both answers are verified against
+            billing behavior (trial auto-downgrades to a read-only free
+            workspace; payment only enters via explicit checkout). */}
+        <section className="stack">
+          <h2>Before you start</h2>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+            <div className="card stack" style={{ gap: 6, padding: 20 }}>
+              <h3 style={{ fontSize: 16, margin: 0 }}>Do I need a credit card?</h3>
+              <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+                No. The trial takes a name and work email — that&apos;s the entire gate. You only ever
+                pay by explicitly choosing a plan and checking out.
+              </p>
+            </div>
+            <div className="card stack" style={{ gap: 6, padding: 20 }}>
+              <h3 style={{ fontSize: 16, margin: 0 }}>What happens when the trial ends?</h3>
+              <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+                Your workspace switches to read-only until you pick a plan. Nothing is charged
+                automatically — ever.
+              </p>
+            </div>
+            <div className="card stack" style={{ gap: 6, padding: 20 }}>
+              <h3 style={{ fontSize: 16, margin: 0 }}>What if I&apos;m not sure it&apos;s real?</h3>
+              <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+                Everything on this page is live in production. Read the{' '}
+                <Link href="/build">public build log</Link> — what shipped, and exactly when.
+              </p>
+            </div>
+          </div>
         </section>
       </main>
     </>
