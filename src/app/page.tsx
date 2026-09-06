@@ -201,7 +201,8 @@ export default function Home() {
 
       <footer style={{ borderTop: '1px solid var(--border)', padding: '24px', textAlign: 'center' }}>
         <p className="muted" style={{ fontSize: 13 }}>
-          © {new Date().getFullYear()} Linda. All rights reserved. Self-serve autonomous workforce for modern teams.
+          © {new Date().getFullYear()} Linda. All rights reserved. Self-serve autonomous workforce for modern teams.{' '}
+          <Link href="/virtual-assistant-alternative">AI agents vs. virtual assistant</Link>
         </p>
       </footer>
     </>
