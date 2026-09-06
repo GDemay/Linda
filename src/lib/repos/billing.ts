@@ -177,7 +177,7 @@ export function insertInvoice(
   ).run(
     iid,
     input.workspaceId,
-    nextInvoiceNumber(db, input.workspaceId, issuedAt),
+    nextInvoiceNumber(db, issuedAt),
     status,
     input.periodStart,
     input.periodEnd,
@@ -195,11 +195,20 @@ export function insertInvoice(
   return findInvoice(db, input.workspaceId, iid)!;
 }
 
-/** Human-shaped: INV-202609-0001, sequential per workspace. */
-function nextInvoiceNumber(db: Db, workspaceId: string, issuedAt: string): string {
-  const r = db.prepare('SELECT COUNT(*) AS n FROM invoices WHERE workspace_id = ?').get(workspaceId) as Row;
-  const seq = Number(r.n) + 1;
+/**
+ * Human-shaped: INV-202609-0001. Sequenced **globally per calendar month**
+ * (LIN-209): `invoices.number` is UNIQUE across all workspaces, so a
+ * per-workspace counter made every workspace's first invoice of the month
+ * collide on `INV-YYYYMM-0001` — the second customer to buy in a month got
+ * a 500. MAX (not COUNT) so gaps left by any legacy numbering can't produce
+ * a repeat; the month prefix keeps numbers unique across months.
+ */
+function nextInvoiceNumber(db: Db, issuedAt: string): string {
   const ym = issuedAt.slice(0, 10).replace(/-/g, '').slice(0, 6);
+  const r = db
+    .prepare("SELECT MAX(CAST(SUBSTR(number, -4) AS INTEGER)) AS max FROM invoices WHERE number LIKE ?")
+    .get(`INV-${ym}-%`) as Row;
+  const seq = Number(r.max ?? 0) + 1;
   return `INV-${ym}-${String(seq).padStart(4, '0')}`;
 }
 

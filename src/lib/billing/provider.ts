@@ -1,5 +1,5 @@
 import type { Db } from '../db/index.ts';
-import { nowIso } from '../db/index.ts';
+import { nowIso, transaction } from '../db/index.ts';
 import { setWorkspacePlan } from '../repos/accounts.ts';
 import {
   findSubscription,
@@ -96,10 +96,15 @@ function writeSubscription(
 ): Subscription {
   const start = now.toISOString();
   const end = new Date(now.getTime() + PERIOD_DAYS * 24 * 3600 * 1000).toISOString();
-  const sub = upsertSubscription(db, { workspaceId, plan, status, periodStart: start, periodEnd: end });
-  setWorkspacePlan(db, workspaceId, plan);
-  issueInvoiceForPeriod(db, workspaceId, plan, start, end, now);
-  return sub;
+  // One transaction (LIN-209): without it, an invoice insert failure left the
+  // subscription already activated — the customer saw a 500 but was actually
+  // on the paid plan with no invoice, no receipt, no success page.
+  return transaction(db, () => {
+    const sub = upsertSubscription(db, { workspaceId, plan, status, periodStart: start, periodEnd: end });
+    setWorkspacePlan(db, workspaceId, plan);
+    issueInvoiceForPeriod(db, workspaceId, plan, start, end, now);
+    return sub;
+  });
 }
 
 /**

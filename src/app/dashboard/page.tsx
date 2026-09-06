@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/client.ts';
+import { PRICING_TIERS } from '@/lib/pricing.ts';
 import { STARTER_TASKS, starterTaskBody, type StarterTask } from '@/lib/tasks/starters.ts';
 import { useWorkspaceId } from '@/lib/use-workspace.ts';
 import { dashboardNudges, type UpgradeNudge } from '@/lib/billing/nudges.ts';
@@ -75,6 +76,13 @@ type BillingBanner = {
   usage: { creditsUsed: number; limitCredits: number; ratio: number; capped: boolean };
   agents: { name: string; status: string; pausedReason: string | null }[];
 };
+
+/**
+ * Paid-plan keys for the client (LIN-210): the server's isPaidPlan lives in
+ * entitlements.ts, which transitively imports node:sqlite and can't be bundled
+ * here. PRICING_TIERS only lists purchasable tiers, so it is the source of truth.
+ */
+const PAID_PLAN_KEYS = new Set<string>(PRICING_TIERS.map((t) => t.key));
 
 /** Agent identity hue is decorative only (design README: never encodes state). */
 const AGENT_HUE: Record<string, string> = {
@@ -298,6 +306,24 @@ function SkeletonDashboard() {
   );
 }
 
+/**
+ * Compact-viewport flag (LIN-210): below 900px the sidebar is display:none,
+ * so the 💳 Upgrade nav item moves into the always-visible topbar. Gating in
+ * JS (not CSS) keeps exactly one upgrade link in the DOM per viewport —
+ * a hidden duplicate would trip Playwright's strict mode and screen readers.
+ */
+function useCompactViewport(): boolean {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 900px)');
+    const update = () => setCompact(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  return compact;
+}
+
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -337,6 +363,7 @@ function Dashboard() {
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const { toast, show } = useToast();
   const { nudges, dismiss } = useUpgradeNudges(billing);
+  const compactViewport = useCompactViewport();
 
   // Composer state: which hired agent, which template, what instruction.
   const [taskAgent, setTaskAgent] = useState<string>('');
@@ -642,9 +669,11 @@ function Dashboard() {
             <a className="l-nav__item" href="#agents">🧑‍💼 Agents</a>
             <a className="l-nav__item" href="#knowledge">📚 Knowledge</a>
             <a className="l-nav__item" href="#activity">📊 Activity</a>
-            <a className="l-nav__item" href={`/dashboard/upgrade?workspace=${encodeURIComponent(workspaceId ?? '')}`}>
-              💳 Upgrade
-            </a>
+            {!compactViewport && (
+              <a className="l-nav__item" href={`/dashboard/upgrade?workspace=${encodeURIComponent(workspaceId ?? '')}`}>
+                💳 Upgrade
+              </a>
+            )}
           </nav>
           <div>
             <p className="l-eyebrow" style={{ padding: '0 var(--space-3)', margin: '0 0 var(--space-2)' }}>
@@ -747,6 +776,19 @@ function Dashboard() {
           <header className="l-topbar">
             <span className="l-sm l-muted">{data.workspace.name}</span>
             <span className="l-spacer" />
+            {/* Standing upgrade entry point (LIN-210): ≤900px hides the
+                sidebar, which used to hold the only Upgrade nav link, so a
+                mid-trial mobile user had no visible path to /dashboard/upgrade.
+                The topbar never collapses — shown until a paid plan is active. */}
+            {compactViewport && (!billing || !PAID_PLAN_KEYS.has(billing.plan.key)) && (
+              <Link
+                href={`/dashboard/upgrade?workspace=${encodeURIComponent(workspaceId ?? '')}`}
+                className="l-btn l-btn--secondary l-btn--sm"
+                style={{ textDecoration: 'none' }}
+              >
+                💳 Upgrade
+              </Link>
+            )}
             <button
               className="l-btn l-btn--secondary l-btn--sm"
               disabled={activeAgents === 0}

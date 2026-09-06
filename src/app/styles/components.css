@@ -293,10 +293,35 @@ a:hover { text-decoration: underline; }
 .l-sm { font: var(--text-sm); }
 .l-xs { font: var(--text-xs); }
 
+/* --- Onboarding wizard --------------------------------------- */
+/* A class, not inline styles (LIN-211): inline gridTemplateColumns can't be
+   overridden by media queries, so the fixed 260px rail took ~63% of a phone
+   screen and squeezed the form into a clipped sliver — with overflow: hidden
+   hiding the crush from the horizontal-overflow E2E check. */
+.l-wizard { display: grid; grid-template-columns: 260px 1fr; min-height: 660px; background: var(--bg-surface); }
+.l-wizard__rail {
+  padding: var(--space-6) var(--space-4);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-canvas);
+}
+.l-wizard__content { padding: var(--space-10); overflow: hidden; }
+/* Phones get this compact progress line in the rail's place; the rail's
+   reassurances come back once there's room for them. */
+.l-wizard__mobilebar { display: none; }
+
 @media (max-width: 900px) {
   .l-shell { grid-template-columns: 1fr; }
   .l-sidebar { display: none; }
   .l-grid--4, .l-grid--3 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .l-wizard { grid-template-columns: 1fr; min-height: 0; }
+  .l-wizard__rail { display: none; }
+  .l-wizard__content { padding: var(--space-5) var(--space-4); overflow: visible; }
+  .l-wizard__mobilebar {
+    display: flex; align-items: baseline; gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+  }
 }
 @media (max-width: 620px) {
   .l-grid--4, .l-grid--3, .l-grid--2 { grid-template-columns: 1fr; }
