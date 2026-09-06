@@ -58,6 +58,8 @@ export default async function SignupPage({
           </Link>
           <div className="row">
             <Link href="/pricing">Pricing</Link>
+            <Link href="/changelog">Changelog</Link>
+            <Link href="/trust">Trust</Link>
             <Link href="/login">Log in</Link>
           </div>
         </div>
@@ -81,9 +83,18 @@ export default async function SignupPage({
             <SignupForm referralSource={ref ?? null} />
 
             <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-              By continuing you agree to the Terms and Privacy Policy. Linda never sends anything from your accounts
-              without your approval. <b>When the trial ends we move you to the free plan — we never charge you
-              automatically.</b>
+              By continuing you agree to the{' '}
+              <Link href="/terms" style={{ textDecoration: 'underline' }}>
+                Terms
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" style={{ textDecoration: 'underline' }}>
+                Privacy Policy
+              </Link>
+              . Linda never sends anything from your accounts without your approval.{' '}
+              <b>
+                When the trial ends we move you to the free plan — we never charge you automatically.
+              </b>
             </p>
           </section>
 
