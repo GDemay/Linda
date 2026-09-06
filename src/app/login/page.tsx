@@ -20,7 +20,11 @@ function LoginContent() {
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState<string | null>(
-    linkError === 'invalid_link' ? 'That sign-in link has expired or was already used. Request a fresh one below.' : null,
+    linkError === 'invalid_link'
+      ? 'That sign-in link has expired or was already used. Request a fresh one below.'
+      : linkError === 'no_workspace'
+        ? 'Your account has no workspace yet. Request a sign-in link below and one will be created for you.'
+        : null,
   );
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);

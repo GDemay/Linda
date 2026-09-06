@@ -19,7 +19,7 @@ const LEGACY_LEADS_FILE =
   path.join(process.cwd(), 'legacy', 'prototype', 'leads.json');
 
 /** Not a valid scrypt encoding, so verifyPassword() always rejects it. */
-const LEGACY_PASSWORD_HASH = '!legacy-imported';
+export const LEGACY_PASSWORD_HASH = '!legacy-imported';
 
 type LegacyLeadRow = {
   email?: unknown;

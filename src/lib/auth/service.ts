@@ -20,6 +20,7 @@ import {
   revokeSession,
 } from '../repos/accounts.ts';
 import { recordEvent } from '../analytics/events.ts';
+import { LEGACY_PASSWORD_HASH } from '../analytics/importLegacyLeads.ts';
 import { recordActivity } from '../repos/workflows.ts';
 import { AppError, type Role, type User, type Workspace } from '../repos/types.ts';
 
@@ -64,6 +65,32 @@ export type SignupResult =
   | { created: true; user: User; workspace: Workspace; token: string; expiresAt: string }
   /** Idempotent re-signup (LIN-67 fix #7): no new lead, no session — a sign-in link is emailed instead. */
   | { created: false; user: User; workspace: Workspace };
+
+/**
+ * LIN-202: legacy-imported leads (LIN-58) exist as user rows with no workspace
+ * or membership — every entry point they could use was a dead end (signup
+ * conflict, a silently unsent magic link, a no_workspace redirect). Provision
+ * their first workspace on first contact instead, so the account becomes
+ * usable the moment they return. Idempotent: if a workspace somehow already
+ * exists, it is returned untouched.
+ */
+function ensureFirstWorkspace(db: Db, user: User): Workspace {
+  return transaction(db, () => {
+    const existing = listWorkspacesForUser(db, user.id);
+    if (existing[0]) return existing[0];
+    const wsName = workspaceNameFromEmail(user.email, user.name);
+    const workspace = createWorkspace(db, { name: wsName, slug: slugify(wsName) });
+    addMembership(db, workspace.id, user.id, 'owner');
+    recordActivity(db, {
+      workspaceId: workspace.id,
+      actorType: 'user',
+      actorId: user.id,
+      kind: 'workspace.created',
+      summary: `${user.name} created the workspace`,
+    });
+    return workspace;
+  });
+}
 
 /** "sarah@acme-studio.co.uk" → "Acme Studio"; falls back to the user's first name. */
 export function workspaceNameFromEmail(email: string, fallbackName: string): string {
@@ -138,10 +165,11 @@ export async function signup(db: Db, raw: unknown, baseUrl = 'http://localhost:3
 
   const existing = findUserByEmail(db, email);
   if (existing) {
-    const workspaces = listWorkspacesForUser(db, existing.id);
-    if (workspaces.length === 0) throw new AppError('conflict', 'an account with that email already exists');
-    await sendMagicLink(db, existing, workspaces[0].name, baseUrl, false);
-    return { created: false, user: existing, workspace: workspaces[0] };
+    // LIN-202: a workspace-less account (legacy-imported lead) gets its first
+    // workspace provisioned here instead of a dead-end conflict error.
+    const workspace = listWorkspacesForUser(db, existing.id)[0] ?? ensureFirstWorkspace(db, existing);
+    await sendMagicLink(db, existing, workspace.name, baseUrl, false);
+    return { created: false, user: existing, workspace };
   }
 
   // Hashing is deliberately slow, so it happens before the transaction opens.
@@ -192,7 +220,9 @@ export async function login(
   if (!parsed.success) throw new AppError('invalid', 'invalid login', parsed.error.issues);
 
   const record = findUserByEmail(db, parsed.data.email);
-  if (record && record.passwordHash === '') {
+  // LIN-202: a legacy-imported lead has a placeholder hash — guide them to
+  // the magic link instead of a misleading "incorrect email or password".
+  if (record && (record.passwordHash === '' || record.passwordHash === LEGACY_PASSWORD_HASH)) {
     throw new AppError('invalid', 'this account has no password — use "Email me a sign-in link" below');
   }
   // Hash against a dummy when the user is missing so timing doesn't reveal
@@ -224,8 +254,10 @@ export async function requestMagicLink(
   if (!parsed.success) throw new AppError('invalid', 'enter a valid email address');
   const record = findUserByEmail(db, parsed.data.email);
   if (record) {
-    const workspaces = listWorkspacesForUser(db, record.id);
-    if (workspaces[0]) await sendMagicLink(db, record, workspaces[0].name, baseUrl, false);
+    // LIN-202: without this, a workspace-less legacy lead would see "check
+    // your inbox" for a link that was never sent.
+    const workspace = listWorkspacesForUser(db, record.id)[0] ?? ensureFirstWorkspace(db, record);
+    await sendMagicLink(db, record, workspace.name, baseUrl, false);
   }
   return { ok: true };
 }
@@ -237,6 +269,9 @@ export function loginWithMagicLink(
 ): { user: User; workspaces: (Workspace & { role: Role })[]; token: string; expiresAt: string } | null {
   const user = consumeMagicLink(db, rawToken);
   if (!user) return null;
+  // LIN-202: belt-and-braces — a workspace-less user verifying a link is
+  // provisioned here too, so the verify route never bounces to no_workspace.
+  if (listWorkspacesForUser(db, user.id).length === 0) ensureFirstWorkspace(db, user);
   const session = createSession(db, user.id);
   return { user, workspaces: listWorkspacesForUser(db, user.id), token: session.token, expiresAt: session.expiresAt };
 }

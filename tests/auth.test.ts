@@ -16,9 +16,11 @@ import { checkPasswordStrength, hashPassword, verifyPassword } from '../src/lib/
 import {
   addMembership,
   createMagicLink,
+  createUser,
   listWorkspacesForUser,
   purgeExpiredSessions,
 } from '../src/lib/repos/accounts.ts';
+import { LEGACY_PASSWORD_HASH } from '../src/lib/analytics/importLegacyLeads.ts';
 import { AppError } from '../src/lib/repos/types.ts';
 
 describe('password hashing', () => {
@@ -215,6 +217,74 @@ describe('magic-link login (LIN-67 / LIN-49 fix #1)', () => {
     expect(workspaceNameFromEmail('sarah@acme-studio.co.uk', 'Sarah Jenkins')).toBe('Acme Studio');
     expect(workspaceNameFromEmail('sarah@agency.com', 'Sarah Jenkins')).toBe('Agency');
     expect(workspaceNameFromEmail('sarah@x.com', 'Sarah Jenkins')).toBe('X');
+  });
+});
+
+describe('legacy-lead self-heal (LIN-202)', () => {
+  // Reproduces the two live external trialists: imported from the prototype's
+  // leads.json as bare user rows — no workspace, no membership, placeholder
+  // password hash — and locked out of every entry point.
+  function legacyLead(d: ReturnType<typeof db>, email: string, name: string): string {
+    const user = createUser(d, { email, name, passwordHash: LEGACY_PASSWORD_HASH });
+    return user.id;
+  }
+
+  it('signup with a legacy lead email provisions their workspace instead of a conflict error', async () => {
+    const d = db();
+    const id = legacyLead(d, 'sarah.connor@skylineops.example', 'Sarah Connor');
+    const r = await signup(d, { email: 'sarah.connor@skylineops.example', name: 'Sarah Connor' });
+    expect(r.created).toBe(false);
+    expect(r.user.id).toBe(id);
+    expect(r.workspace.id).toBeTruthy();
+    const ws = listWorkspacesForUser(d, id);
+    expect(ws).toHaveLength(1);
+    expect(ws[0].role).toBe('owner');
+    // A sign-in link was actually created (sendMagicLink ran with a workspace).
+    const links = d.prepare('SELECT COUNT(*) AS n FROM magic_link_tokens WHERE user_id = ?').get(id) as {
+      n: number;
+    };
+    expect(links.n).toBeGreaterThan(0);
+  });
+
+  it('re-signup is stable: the provisioned workspace is reused, never duplicated', async () => {
+    const d = db();
+    const id = legacyLead(d, 'alex.rivera@growthagency.example', 'Alex Rivera');
+    const first = await signup(d, { email: 'alex.rivera@growthagency.example', name: 'Alex Rivera' });
+    const second = await signup(d, { email: 'alex.rivera@growthagency.example', name: 'Alex Rivera' });
+    expect(second.workspace.id).toBe(first.workspace.id);
+    expect(listWorkspacesForUser(d, id)).toHaveLength(1);
+  });
+
+  it('magic-link request for a legacy lead sends a real link (was a silent no-op)', async () => {
+    const d = db();
+    const id = legacyLead(d, 'legacy-lead@example.com', 'Legacy Lead');
+    await expect(requestMagicLink(d, { email: 'legacy-lead@example.com' }, 'https://linda.test')).resolves.toEqual({
+      ok: true,
+    });
+    const links = d.prepare('SELECT COUNT(*) AS n FROM magic_link_tokens WHERE user_id = ?').get(id) as {
+      n: number;
+    };
+    expect(links.n).toBeGreaterThan(0);
+    // The workspace exists now too, so verify will route into onboarding.
+    expect(listWorkspacesForUser(d, id)).toHaveLength(1);
+  });
+
+  it('verifying a link as a workspace-less user provisions the workspace before the session', async () => {
+    const d = db();
+    const id = legacyLead(d, 'verify-heal@example.com', 'Verify Heal');
+    const { token } = createMagicLink(d, id);
+    const session = loginWithMagicLink(d, token);
+    expect(session?.user.id).toBe(id);
+    expect(session?.workspaces).toHaveLength(1);
+    expect(session?.workspaces[0]?.role).toBe('owner');
+  });
+
+  it('password login for a legacy lead points at the magic-link flow, not "incorrect password"', async () => {
+    const d = db();
+    legacyLead(d, 'pw-lead@example.com', 'Pw Lead');
+    await expect(login(d, { email: 'pw-lead@example.com', password: VALID_PASSWORD })).rejects.toThrow(
+      /no password/,
+    );
   });
 });
 
