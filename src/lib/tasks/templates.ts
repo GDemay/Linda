@@ -279,6 +279,27 @@ export const TASK_TEMPLATES: Record<AgentKey, TaskTemplate[]> = {
         `Request routed by ${persona}:\n\n"${firstSentence(input)}"\n\n` +
         `Matched to the agent who owns this kind of work; they will pick it up and report back here.`,
     },
+    {
+      // LIN-153 "Summarize this URL" starter: the input carries a URL
+      // ("Summarize this page: https://…"), which the render cites back.
+      key: 'url_summary',
+      category: 'Chief of staff',
+      title: 'Summarize a link',
+      tokens: 140,
+      render: ({ input, knowledge }) => {
+        const url = input.match(/https?:\/\/\S+/)?.[0] ?? firstSentence(input);
+        return (
+          `Summary of ${url}\n\n` +
+          bullets([
+            'What the page is and who it is for',
+            'The three points worth remembering',
+            'Anything that asks the reader to act, and by when',
+          ]) +
+          `\n\nKey passages filed to the workspace activity feed.` +
+          groundingNote(knowledge)
+        );
+      },
+    },
   ],
 };
 

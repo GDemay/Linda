@@ -19,6 +19,9 @@ export const EVENT_NAMES = [
   'magic_link_sent',
   'magic_link_throttled',
   'first_task_dispatched',
+  // LIN-153: one-click starter launches from the dashboard empty state.
+  // Server-side, workspace-scoped — carries { workspaceId, agent, starter }.
+  'starter_task_launched',
   // Pricing funnel (LIN-111): pricing_view is a client beacon; signup_start
   // and signup_complete are recorded server-side on the signup POST.
   'pricing_view',
