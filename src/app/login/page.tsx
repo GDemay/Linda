@@ -139,7 +139,7 @@ function LoginContent() {
                   <div className="l-skeleton" style={{ width: '100%', height: '40px' }} />
                   <div className="l-skeleton" style={{ width: '100%', height: '46px', marginTop: 'var(--space-4)' }} />
                   <p className="l-xs l-muted" style={{ margin: 0 }}>
-                    {linkToken ? 'Checking your sign-in link…' : 'Skeletons match the form layout so nothing jumps on load.'}
+                    {linkToken ? 'Checking your sign-in link…' : 'Signing you in…'}
                   </p>
                 </div>
               ) : effectiveState === 'destructive-confirm' ? (

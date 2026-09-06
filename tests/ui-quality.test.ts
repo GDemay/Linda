@@ -168,6 +168,18 @@ describe('static anti-pattern scan of src/app', () => {
     );
   });
 
+  it('no internal spec/loading-state copy renders to users (LIN-152)', () => {
+    // Journey-Spec authoring notes like "Skeletons match the form layout so
+    // nothing jumps on load." once shipped as the /login and /onboarding
+    // loading fallbacks. Only comments may mention skeletons; JSX must not.
+    const stripComments = (src: string) =>
+      src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const offenders = files.filter((f) =>
+      /nothing jumps on load|Skeletons match/.test(stripComments(readFileSync(f, 'utf8'))),
+    );
+    expect(offenders.map((f) => f.split('/src/app/')[1])).toEqual([]);
+  });
+
   it('signup footer links the legal pages it references (LIN-121)', () => {
     const signup = readFileSync(join(import.meta.dirname, '..', 'src', 'app', 'signup', 'page.tsx'), 'utf8');
     expect(signup).toContain('href="/terms"');

@@ -190,7 +190,7 @@ function OnboardingFlow() {
               ))}
               <div className="l-skeleton" style={{ width: '30%', height: '40px' }} />
               <p className="l-xs l-muted" style={{ margin: 0 }}>
-                Skeletons match the step layout so nothing jumps on load.
+                Loading your workspace…
               </p>
             </div>
           </div>
